@@ -76,7 +76,7 @@ aIO_handle_t udp_soc_two = NULL;
 aIO_handle_t tcp_soc = NULL;
 
 const unsigned char next_state_signal_1 = NEXT_TASK_1;
-const unsigned char next_state_signal_2 = NEXT_TASK_2;
+
 const unsigned char prev_state_signal = PREV_TASK;
 
 static TaskHandle_t StateMachine = NULL;
@@ -84,6 +84,7 @@ static TaskHandle_t BufferSwap = NULL;
 static TaskHandle_t DemoTask1 = NULL;
 static TaskHandle_t DemoTask2 = NULL;
 static TaskHandle_t DemoTask3 = NULL;
+static TaskHandle_t DemoTask4 = NULL;
 static TaskHandle_t UDPDemoTask = NULL;
 static TaskHandle_t TCPDemoTask = NULL;
 static TaskHandle_t MQDemoTask = NULL;
@@ -104,7 +105,7 @@ int score_1=0;
 int high_score=0;
 int score_2=0;
 int speed=0;
-
+int button1=0;
 
 TaskHandle_t Text_Task_1=NULL;
 TaskHandle_t Text_Task_2=NULL;
@@ -221,6 +222,8 @@ void basicSequentialStateMachine(void *pvParameters)
 initial_state:
         // Handle current state
         if (state_changed) {
+            if (button1)
+            { 
             switch (current_state) {
                 case STATE_ONE:
                     if (DemoTask2) {
@@ -248,6 +251,7 @@ initial_state:
                     
                     }
                 case STATE_Three:
+                    button1=0;
                     if (DemoTask1) {
                         vTaskSuspend(DemoTask1);
                     } 
@@ -264,6 +268,54 @@ initial_state:
                     break;
             }
             state_changed = 0;
+            }
+        else
+        {            
+            switch (current_state) {
+                case STATE_ONE:
+                    if (DemoTask2) {
+                        vTaskSuspend(DemoTask2);
+                    }
+                    if (DemoTask4) {
+                        vTaskSuspend(DemoTask4);
+                    }
+                    if (DemoTask1) {
+                        vTaskResume(DemoTask1);
+                    }
+                    
+                    break;
+                case STATE_TWO:
+                    if (DemoTask4) {
+                        vTaskSuspend(DemoTask4);
+                    }
+                    if (DemoTask1) {
+                        vTaskSuspend(DemoTask1);
+
+                    if (DemoTask2) {
+                        vTaskResume(DemoTask2);
+                    }
+                    break;
+                    
+                    }
+                case STATE_Three:
+                    
+                    if (DemoTask1) {
+                        vTaskSuspend(DemoTask1);
+                    } 
+                    if (DemoTask2) {
+                        vTaskSuspend(DemoTask2);
+                    }
+                    if (DemoTask4) {
+                        vTaskResume(DemoTask4);
+                    }
+                    break;
+
+                   
+                default:
+                    break;
+                   }
+            state_changed = 0;
+            }
         }
     }
 }
@@ -325,7 +377,7 @@ void vDrawHelpText(void)
 
 	tumFontSetSize((ssize_t)20);
 
-	sprintf(str, "[Q]uit, [R]est");
+	sprintf(str, "[M]enu, [R]est");
 
 	if (!tumGetTextSize((char *)str, &text_width, NULL))
 		checkDraw(tumDrawText(str, SCREEN_WIDTH - text_width - 10,
@@ -977,27 +1029,27 @@ void vDraw_Player(int p )
 }
 
 void Move_Text_1(void *pvParameters)
-{   static char str1[50] = {0};
-    sprintf(str1, "INSERT COIN");
+{   static char str[50] = {0};
+    sprintf(str, "INSERT COIN");
     //animation loop
     for (int i=0; i<=12; i++)
         {
-           str5[i]=str1[i];
+           str5[i]=str[i];
              vTaskDelay(xDelay);
          
         }vTaskSuspend(Text_Task_1);
        
 }
 void Move_Text_2(void *pvParameters)
-{       static char str2[50] = {0};
-        sprintf(str2, "< 1 OR 2 PLAYERS >");
+{       static char str[50] = {0};
+        sprintf(str, "< 1 OR 2 PLAYERS >");
    
             vTaskDelay(150);
     //animation loop
     
     for (int j=0; j<=19; j++)
         {
-           str6[j]=str2[j];
+           str6[j]=str[j];
              vTaskDelay(xDelay);
          
         }vTaskSuspend(Text_Task_2);
@@ -1006,8 +1058,8 @@ void Move_Text_2(void *pvParameters)
 }
 void Move_Text_3(void *pvParameters)
 {     
-     static char str3[50] = {0};
-    sprintf(str3, "* 1 PLAYER    1 COIN");  
+     static char str[50] = {0};
+    sprintf(str, "* 1 PLAYER    1 COIN");  
 
 
       vTaskDelay(400);
@@ -1015,7 +1067,7 @@ void Move_Text_3(void *pvParameters)
     //animation loop
     for ( int k=0; k<=21; k++)
         {
-           str7[k]=str3[k];
+           str7[k]=str[k];
              vTaskDelay(xDelay);
          
         }  vTaskSuspend(Text_Task_3); 
@@ -1023,15 +1075,15 @@ void Move_Text_3(void *pvParameters)
 }
 void Move_Text_4(void *pvParameters)
 {
-      static char str4[50] = {0};
-    sprintf(str4, "* 2 PLAYER    2 COINS");
+      static char str[50] = {0};
+    sprintf(str, "* 2 PLAYER    2 COINS");
 
         vTaskDelay(600);
    
    //animation loop
     for (int l=0; l<=22; l++)
         {
-           str8[l]=str4[l];
+           str8[l]=str[l];
              vTaskDelay(xDelay);
          
         } vTaskSuspend(Text_Task_4);
@@ -1114,6 +1166,7 @@ static int vCheckStateInput(void)
 {
     if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
         if (buttons.buttons[KEYCODE(1)]) {
+            button1=1;
            buttons.buttons[KEYCODE(1)] = 0;
             if (StateQueue) {
                 xSemaphoreGive(buttons.lock);
@@ -1126,11 +1179,12 @@ static int vCheckStateInput(void)
     }
 
     return 0;
-}static int vCheckStateInputP(void)
+}
+static int vCheckStateInput2(void)
 {
     if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
-        if (buttons.buttons[KEYCODE(P)]) {
-           buttons.buttons[KEYCODE(P)] = 0;
+        if (buttons.buttons[KEYCODE(2)]) {
+           buttons.buttons[KEYCODE(2)] = 0;
             if (StateQueue) {
                 xSemaphoreGive(buttons.lock);
                 xQueueSend(StateQueue, &next_state_signal_1, 0);
@@ -1144,7 +1198,43 @@ static int vCheckStateInput(void)
     return 0;
 }
 
+static int vCheckStateInputP(void)
+{
+    if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
+        if (buttons.buttons[KEYCODE(P)]) {
+           buttons.buttons[KEYCODE(P)] = 0;
+            if (StateQueue) {
+                xSemaphoreGive(buttons.lock);
+            
+                xQueueSend(StateQueue, &next_state_signal_1, 0);
+               
+                return 0;
+            }
+            return -1;
+        }
+        xSemaphoreGive(buttons.lock);
+    }
 
+    return 0;
+}
+
+static int vCheckStateInputM(void)
+{
+    if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
+        if (buttons.buttons[KEYCODE(M)]) {
+           buttons.buttons[KEYCODE(M)] = 0;
+            if (StateQueue) {
+                xSemaphoreGive(buttons.lock);
+                xQueueSend(StateQueue, &next_state_signal_1, 0);
+                return 0;
+            }
+            return -1;
+        }
+        xSemaphoreGive(buttons.lock);
+    }
+
+    return 0;
+}
 void UDPHandlerOne(size_t read_size, char *buffer, void *args)
 {
 	prints("UDP Recv in first handler: %s\n", buffer);
@@ -1304,7 +1394,7 @@ void playBallSound(void *args)
 
 
 void vDemoTask1(void *pvParameters)
-{   
+{   vTaskResume(Text_Task_1);
 
     int y=0;
     int x=50;
@@ -1321,7 +1411,6 @@ void vDemoTask1(void *pvParameters)
       
     
      xTaskCreate(Move_Text_4, "MOVE_TEXT_4", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY , &Text_Task_4 );  
-    
   
    
 
@@ -1342,10 +1431,10 @@ void vDemoTask1(void *pvParameters)
                 DrawText(x, y);
 				Score_Title (  score_1, high_score ,score_2);
 			    xSemaphoreGive(ScreenLock);
-
+               
 				// Check for state change
 				vCheckStateInput();
-
+                vCheckStateInput2();
 			
 			}
 	}
@@ -1354,27 +1443,32 @@ void vDemoTask1(void *pvParameters)
     
 }
 
+void CleanText()
+{
+      sprintf(str1," ");
+sprintf(str2," ");
+sprintf(str3," ");
+  sprintf(str5," ");
+sprintf(str6," ");
+sprintf(str7," ");
+
+  sprintf(str8," ");
+sprintf(str9," ");
+sprintf(str10," ");
+sprintf(str11," ");
+}
+
 void vDemoTask3(void *pvParameters)
-{   vTaskDelete(Text_Task_1);
-    vTaskDelete(Text_Task_2);
-    vTaskDelete(Text_Task_3);
-    vTaskDelete(Text_Task_4);
-      vTaskDelete(Text_Task_5);
-    vTaskDelete(Text_Task_6);
-    vTaskDelete(Text_Task_7);
-    vTaskDelete(Text_Task_8);
-      vTaskDelete(Text_Task_9);
-    vTaskDelete(Text_Task_10);
-
-
+{ 
+ 
 logo_image_player = tumDrawLoadImage(LOGO_player);
     int x=30;
     int y=90;
 xTaskCreate(Move_enemy, "MOVE_enemy", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &enemy_Task );
 
 xTaskCreate(Move_Player, "MOVE_Player", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &Player_Task );
-xTaskCreate(xCreatBlock_1, "Block_1", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &Blcok_Task_1 );
-xTaskCreate(xCreatBlock_2, "Block_2", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &Blcok_Task_2 );
+//xTaskCreate(xCreatBlock_1, "Block_1", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &Blcok_Task_1 );
+//xTaskCreate(xCreatBlock_2, "Block_2", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &Blcok_Task_2 );
      while (1) {
         if (DrawSignal)
             if (xSemaphoreTake(DrawSignal, portMAX_DELAY) ==
@@ -1394,9 +1488,42 @@ xTaskCreate(xCreatBlock_2, "Block_2", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_
                 xSemaphoreGive(ScreenLock);
                 xGetButtonInput();
                 vCheckStateInput_R();
+                vCheckStateInputM();
             }
      }
 
+}
+void vDemoTask4(void *pvParameters)
+{    
+          
+
+	while (1) {
+		if (DrawSignal)
+			if (xSemaphoreTake(DrawSignal, portMAX_DELAY) == pdTRUE)
+             {
+			    tumEventFetchEvents(FETCH_EVENT_BLOCK |
+						    FETCH_EVENT_NO_GL_CHECK);	
+
+				xGetButtonInput(); // Update global button data
+                xSemaphoreTake(ScreenLock, portMAX_DELAY);
+				checkDraw(tumDrawClear(Black), __FUNCTION__);
+			
+				// Clear screen
+ 
+				
+              
+				Score_Title (  score_1, high_score ,score_2);
+			    xSemaphoreGive(ScreenLock);
+               
+				// Check for state change
+				vCheckStateInputM();
+
+			
+			}
+	}
+    
+   
+    
 }
 
 #define PRINT_TASK_ERROR(task) PRINT_ERROR("Failed to print task ##task");
@@ -1499,6 +1626,11 @@ int main(int argc, char *argv[])
        PRINT_TASK_ERROR("DemoTask3");
         goto err_demotask3;
     }
+    if (xTaskCreate(vDemoTask4, "DemoTask4", mainGENERIC_STACK_SIZE * 2,
+                    NULL, mainGENERIC_PRIORITY, &DemoTask4) != pdPASS) {
+       PRINT_TASK_ERROR("DemoTask4");
+        goto err_demotask4;
+    }
 	/** SOCKETS */
 	xTaskCreate(vUDPDemoTask, "UDPTask", mainGENERIC_STACK_SIZE * 2, NULL,
 		    configMAX_PRIORITIES - 1, &UDPDemoTask);
@@ -1514,17 +1646,22 @@ int main(int argc, char *argv[])
 	vTaskSuspend(DemoTask1);
 	vTaskSuspend(DemoTask2);
     vTaskSuspend(DemoTask3);
+    vTaskSuspend(DemoTask4);
 
 	tumFUtilPrintTaskStateList();
 
 	vTaskStartScheduler();
 
 	return EXIT_SUCCESS;
+
+err_demotask4:
+    vTaskDelete(DemoTask2);
 err_demotask3:
     vTaskDelete(DemoTask2);
 err_demotask2:
 	vTaskDelete(DemoTask1);
 err_demotask1:
+   
 	vTaskDelete(BufferSwap);
 err_bufferswap:
 	vTaskDelete(StateMachine);

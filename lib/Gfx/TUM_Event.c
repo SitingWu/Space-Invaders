@@ -72,9 +72,9 @@ static void SDLFetchEvents(void)
 
     while (SDL_PollEvent(&event)) {
         if ((event.type == SDL_QUIT) ||
-            (event.key.keysym.scancode == SDL_SCANCODE_Q)) {
+           (event.key.keysym.scancode == SDL_SCANCODE_Q)) {
             exit(EXIT_SUCCESS);
-        }
+       }
         else if (event.type == SDL_KEYDOWN) {
             buttons[event.key.keysym.scancode] = 1;
             send = 1;
