@@ -52,6 +52,7 @@
 #define LOGO_20 "20point.png"
 #define LOGO_10 "10point.jpg"
 #define LOGO_player "player"
+#define LOGO_player_1 "player_1"
 #define LOGO_mothership "mothership"
 
 
@@ -99,13 +100,17 @@ static image_handle_t logo_image_30 = NULL;
 static image_handle_t logo_image_20 = NULL;
 static image_handle_t logo_image_10 = NULL;
 static image_handle_t logo_image_player = NULL;
+static image_handle_t logo_image_player_1 = NULL;
 static image_handle_t logo_image_mothership = NULL;
 
+
+// globale variable
 int score_1=0;
 int high_score=0;
 int score_2=0;
 int speed=0;
 int button1=0;
+int life = 3;
 
 TaskHandle_t Text_Task_1=NULL;
 TaskHandle_t Text_Task_2=NULL;
@@ -870,13 +875,13 @@ void Move_Player(void *pvParameters)
         if (buttons.buttons[KEYCODE(RIGHT)]) {
             buttons.buttons[KEYCODE(RIGHT)] = 0;
             if(Position<220)
-            Position+=12;
+            Position+=20;
            
             }
         else if (buttons.buttons[KEYCODE(LEFT)]) {
             buttons.buttons[KEYCODE(LEFT)] = 0;
-            if(Position>-250)
-            Position-=12;
+            if(Position>-280)
+            Position-=20;
             ;}
 
        
@@ -1018,7 +1023,7 @@ void vDraw_Player(int p )
     int y=SCREEN_HEIGHT-120;
 
   	   tumDrawSetLoadedImageScale 	( logo_image_player,
-		                         0.2
+		                         0.25
 	                                ) ;	
         checkDraw(
 			tumDrawLoadedImage(logo_image_player,
@@ -1027,6 +1032,53 @@ void vDraw_Player(int p )
                           __FUNCTION__);  
 
 }
+void vDraw_PlayerLife()
+{   int x=180;
+    int y=SCREEN_HEIGHT-80;
+    static char str[10] = { 0 };
+    sprintf(str, "%d" ,life);
+    tumFontSetSize((ssize_t)20);
+  tumDrawSetLoadedImageScale 	( logo_image_player_1,
+		                         0.12
+	                             ) ;	
+         if(life>1)  
+        checkDraw(
+			tumDrawLoadedImage(logo_image_player_1,
+                                 x,
+					             y       ),
+                          __FUNCTION__);  
+        if(life>2)
+          checkDraw(
+			tumDrawLoadedImage(logo_image_player_1,
+                                 x+45,
+					             y       ),
+                          __FUNCTION__);  
+
+
+
+        checkDraw(tumDrawText(str, x-20 ,
+				                y, White),
+			  __FUNCTION__);
+
+
+}
+
+void vDraw_Mothership()
+{ int x=CAVE_SIZE_X;
+    int y=SCREEN_HEIGHT-350;
+
+  	   tumDrawSetLoadedImageScale 	( logo_image_mothership,
+		                         0.2
+	                                ) ;	
+        checkDraw(
+			tumDrawLoadedImage(logo_image_mothership,
+                                 x,
+					             y       ),
+                          __FUNCTION__);  
+
+}
+
+
 
 void Move_Text_1(void *pvParameters)
 {   static char str[50] = {0};
@@ -1094,7 +1146,7 @@ void DrawText(int x, int y)
 {
 
     static int text_width;
-  
+    tumFontSetSize((ssize_t)23);
     		
      if (!tumGetTextSize((char *)str5, &text_width, NULL))
                 checkDraw(tumDrawText((char *)str5, 
@@ -1129,38 +1181,6 @@ void vDrawStaticItems(void)
 	vDrawLogo();
 }
 
-void vDrawButtonText(void)
-{
-	static char str[100] = { 0 };
-
-	sprintf(str, "Axis 1: %5d | Axis 2: %5d", tumEventGetMouseX(),
-		tumEventGetMouseY());
-
-	checkDraw(tumDrawText(str, 10, DEFAULT_FONT_SIZE * 0.5, Black),
-		  __FUNCTION__);
-
-	if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
-		sprintf(str, "W: %d | S: %d | A: %d | D: %d",
-			buttons.buttons[KEYCODE(W)],
-			buttons.buttons[KEYCODE(S)],
-			buttons.buttons[KEYCODE(A)],
-			buttons.buttons[KEYCODE(D)]);
-		xSemaphoreGive(buttons.lock);
-		checkDraw(tumDrawText(str, 10, DEFAULT_FONT_SIZE * 2, Black),
-			  __FUNCTION__);
-	}
-
-	if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
-		sprintf(str, "UP: %d | DOWN: %d | LEFT: %d | RIGHT: %d",
-			buttons.buttons[KEYCODE(UP)],
-			buttons.buttons[KEYCODE(DOWN)],
-			buttons.buttons[KEYCODE(LEFT)],
-			buttons.buttons[KEYCODE(RIGHT)]);
-		xSemaphoreGive(buttons.lock);
-		checkDraw(tumDrawText(str, 10, DEFAULT_FONT_SIZE * 3.5, Black),
-			  __FUNCTION__);
-	}
-}
 
 static int vCheckStateInput(void)
 {
@@ -1373,7 +1393,7 @@ void vDemoTask2(void *pvParameters)
 				vDrawStaticItems();
                 DrawMoveText2 ();
                 PlayText();
-				vDrawButtonText();
+				
 
                 Score_Title (  score_1, high_score ,score_2);
 				// Draw FPS in lower right corner
@@ -1394,7 +1414,7 @@ void playBallSound(void *args)
 
 
 void vDemoTask1(void *pvParameters)
-{   vTaskResume(Text_Task_1);
+{  
 
     int y=0;
     int x=50;
@@ -1488,6 +1508,7 @@ xTaskCreate(Move_Player, "MOVE_Player", mainGENERIC_STACK_SIZE, NULL, mainGENERI
                 xSemaphoreGive(ScreenLock);
                 xGetButtonInput();
                 vCheckStateInput_R();
+                vDraw_PlayerLife();
                 vCheckStateInputM();
             }
      }
@@ -1495,8 +1516,10 @@ xTaskCreate(Move_Player, "MOVE_Player", mainGENERIC_STACK_SIZE, NULL, mainGENERI
 }
 void vDemoTask4(void *pvParameters)
 {    
-          
-
+    logo_image_player = tumDrawLoadImage(LOGO_player);
+    logo_image_mothership= tumDrawLoadImage(LOGO_mothership);
+    logo_image_player_1=  tumDrawLoadImage(LOGO_player_1);
+    xTaskCreate(Move_Player, "MOVE_Player", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &Player_Task );
 	while (1) {
 		if (DrawSignal)
 			if (xSemaphoreTake(DrawSignal, portMAX_DELAY) == pdTRUE)
@@ -1510,17 +1533,17 @@ void vDemoTask4(void *pvParameters)
 			
 				// Clear screen
  
-				
-              
+				vDraw_Player(Position);
+                vDrawHelpText(); 
 				Score_Title (  score_1, high_score ,score_2);
 			    xSemaphoreGive(ScreenLock);
-               
+                vCheckStateInput_R();
 				// Check for state change
 				vCheckStateInputM();
-
-			
+                vDraw_PlayerLife();
+                vDraw_Mothership();
 			}
-	}
+	}       
     
    
     
