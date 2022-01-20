@@ -1063,6 +1063,21 @@ void vDraw_PlayerLife()
 
 }
 
+void Gameover()
+{
+ static char str[10] = { 0 };
+    sprintf(str," Game Over!!! ");
+    tumFontSetSize((ssize_t)25);
+
+
+
+        checkDraw(tumDrawText(str, CAVE_SIZE_X ,
+				                CAVE_Y, Red
+                                ),
+			  __FUNCTION__);
+            vTaskDelay(3000);
+        xQueueSend(StateQueue, &next_state_signal_1, 0);
+}
 void vDraw_Mothership()
 { int x=CAVE_SIZE_X;
     int y=SCREEN_HEIGHT-350;
@@ -1510,6 +1525,8 @@ xTaskCreate(Move_Player, "MOVE_Player", mainGENERIC_STACK_SIZE, NULL, mainGENERI
                 vCheckStateInput_R();
                 vDraw_PlayerLife();
                 vCheckStateInputM();
+                if (life==0)
+                Gameover();
             }
      }
 
@@ -1542,6 +1559,8 @@ void vDemoTask4(void *pvParameters)
 				vCheckStateInputM();
                 vDraw_PlayerLife();
                 vDraw_Mothership();
+                if (life==0)
+                Gameover();
 			}
 	}       
     
