@@ -256,7 +256,7 @@ initial_state:
                     
                     }
                 case STATE_Three:
-                    button1=0;
+                  
                     if (DemoTask1) {
                         vTaskSuspend(DemoTask1);
                     } 
@@ -273,6 +273,7 @@ initial_state:
                     break;
             }
             state_changed = 0;
+            
             }
         else
         {            
@@ -867,7 +868,7 @@ void vDraw_Bullet(int x, int y)
 int Position=0;
    
 void Move_Player(void *pvParameters)
-{   
+{ 
      for(;;)
      {
        //Button count
@@ -1041,7 +1042,7 @@ void vDraw_PlayerLife()
   tumDrawSetLoadedImageScale 	( logo_image_player_1,
 		                         0.12
 	                             ) ;	
-         if(life>1)  
+        if(life>1)  
         checkDraw(
 			tumDrawLoadedImage(logo_image_player_1,
                                  x,
@@ -1220,7 +1221,9 @@ static int vCheckStateInput2(void)
     if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
         if (buttons.buttons[KEYCODE(2)]) {
            buttons.buttons[KEYCODE(2)] = 0;
+            button1=0;
             if (StateQueue) {
+               
                 xSemaphoreGive(buttons.lock);
                 xQueueSend(StateQueue, &next_state_signal_1, 0);
                 return 0;
@@ -1497,6 +1500,7 @@ void vDemoTask3(void *pvParameters)
 { 
  
 logo_image_player = tumDrawLoadImage(LOGO_player);
+logo_image_player_1= tumDrawLoadImage(LOGO_player_1);
     int x=30;
     int y=90;
 xTaskCreate(Move_enemy, "MOVE_enemy", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &enemy_Task );
