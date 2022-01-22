@@ -44,6 +44,12 @@
 #define CAVE_X CAVE_SIZE_X / 2
 #define CAVE_Y CAVE_SIZE_Y / 2
 #define BLOCK_THICKNESS 15
+#define world_offsetX 30
+#define world_offsetY 85
+
+
+
+#define player_offsetX  SCREEN_WIDTH/2
 
 
 //Bildern define
@@ -112,22 +118,14 @@ int speed=0;
 int button1=0;
 int life = 3;
 
-TaskHandle_t Text_Task_1=NULL;
-TaskHandle_t Text_Task_2=NULL;
-
-TaskHandle_t Text_Task_3=NULL;
-TaskHandle_t Text_Task_4=NULL;
-TaskHandle_t Text_Task_5=NULL;
-TaskHandle_t Text_Task_6=NULL;
-
-TaskHandle_t Text_Task_7=NULL;
-TaskHandle_t Text_Task_8=NULL;
-TaskHandle_t Text_Task_9=NULL;
-TaskHandle_t Text_Task_10=NULL;
+TaskHandle_t Text_task_all=NULL;
+TaskHandle_t xtask_menu=NULL;
 TaskHandle_t enemy_Task=NULL;
 TaskHandle_t Player_Task=NULL;
 TaskHandle_t Blcok_Task_1=NULL;
 TaskHandle_t Blcok_Task_2=NULL;
+TaskHandle_t enemy_position=NULL;
+
 typedef struct buttons_buffer {
 	unsigned char buttons[SDL_NUM_SCANCODES];
 	SemaphoreHandle_t lock;
@@ -145,6 +143,161 @@ static buttons_buffer_t buttons = { 0 };
     static char str9[50] = {0};   
     static char str10[50] = {0};
     static char str11[50] = {0}; 
+
+
+//Anfang
+#define sizex 72
+#define sizey 15
+#define empty 0
+#define enemy30 3
+#define enemy20 2
+#define enemy10 1
+#define player 4
+#define block 5
+#define enemy_bullet 6
+#define player_bullet 7
+
+int world[sizey][sizex] ;
+void Enemyfield()
+{   int x=0;
+    int y=0;
+    //reset 
+    
+    for (y=0;y<=sizey;y++)
+    {
+        for(x=0;x<=sizex;x++)
+        {
+            world[y][x]= empty;
+            
+        }
+    }
+    
+    //player
+    world[sizey-1][sizex/2]=player;
+    
+    //enemy30
+    for (x=0;x<=16;x++)
+
+        { 
+         if(!x%2)
+        world[0][x]=enemy30;
+        }
+    //enemy20
+    for (y=1;y<3;y++)
+    {
+        for (x=0;x<=16;x++)
+        {
+            if(!x%2)
+        world[0][x]=enemy20;
+        }
+
+    }
+    //enemy20
+    for (y=1;y<3;y++)
+    {
+        for (x=0;x<=16;x++)
+        {
+            if(!x%2)
+        world[0][x]=enemy20;
+     
+        }
+    }
+
+    //enemy10
+    for (y=3;y<5;y++)
+    {
+        for (x=0;x<=16;x++)
+        {
+            if(!x%2)
+        world[0][x]=enemy10;
+        }
+    }
+
+    
+
+    //Blöckern
+    for(y=sizey-3;y> sizey-6;y--)
+    {      int abstand=6; 
+        for(x=0;x<4;x++)
+        
+            world[y][x+3]=block;
+        
+        for(x=0;x<4;x++)
+            world[y][x+3+abstand]=block;
+        for(x=0;x<4;x++)
+            world[y][x+3+abstand*2]=block;
+        for(x=0;x<4;x++)
+           world[y][x+3+abstand*3]=block;
+    }
+
+}
+
+void move_enemy_position()
+{      int speedX=1;
+    vTaskDelay(xDelay);
+    for(;;)
+   { //int speedX=tumDrawGetloadedImageWide (logo_image_30);
+    for(int k=0;k<7;k++)
+    {
+        int x=0;
+        int y=0;
+    //reset 
+    
+    for (y=0;y<=sizey;y++)
+    {
+        for(x=0;x<=sizex;x++)
+        {
+            world[y][x]= empty;
+        }
+    }
+    
+    //player
+    //world[sizey-1][sizex/2]=player;
+    
+    //enemy30
+    for (x=0;x<=16;x++)
+
+        { 
+         if(!x%2)
+        world[0][x+speedX]=enemy30;
+        }
+    //enemy20
+    for (y=1;y<3;y++)
+    {
+        for (x=0;x<=16;x++)
+        {
+            if(!x%2)
+        world[0][x+speedX]=enemy20;
+        }
+
+    }
+    //enemy20
+    for (y=1;y<3;y++)
+    {
+        for (x=0;x<=16;x++)
+        {
+            if(!x%2)
+        world[0][x+speedX]=enemy20;
+     
+        }
+    }
+
+    //enemy10
+    for (y=3;y<5;y++)
+    {
+        for (x=0;x<=16;x++)
+        {
+            if(!x%2)
+        world[0][x+speedX]=enemy10;
+        }
+    }
+
+  }     
+    speedX=-speedX;
+    
+     vTaskDelay(xDelay); 
+   }
+}
 
 void checkDraw(unsigned char status, const char *msg)
 {
@@ -487,79 +640,7 @@ void Score_Title ( int score_1, int high_score ,int score_2)
                   
       tumFontSetSize(prev_font_size);
 }
-void Move_Text_8(void *pvParameters)
-{   static char str[50] = {0};
-    sprintf(str, "[P]LAY");
-    //animation loop
-    for (int i=0; i<=strlen(str); i++)
-        {
-           str1[i]=str[i];
-             vTaskDelay(xDelay);
-         
-        }vTaskSuspend(Text_Task_8);
-}
-void Move_Text_9(void *pvParameters)
-{   static char str[50] = {0};
-    sprintf(str, "SPACE INVADERS");
-        vTaskDelay(80);
-    //animation loop
-    for (int i=0; i<=strlen(str); i++)
-        {
-           str2[i]=str[i];
-             vTaskDelay(xDelay);
-         
-        }vTaskSuspend(Text_Task_9);
-}
-void Move_Text_10(void *pvParameters)
-{   static char str[50] = {0};
-    sprintf(str, "* SCORE ADVANCE TABE *");
-        vTaskDelay(350);
-    //animation loop
-    for (int i=0; i<=strlen(str); i++)
-        {
-           str3[i]=str[i];
-             vTaskDelay(xDelay);
-         
-        }vTaskSuspend(Text_Task_10);
-}
-void Move_Text_5(void *pvParameters)
-{   static char str[50] = {0};
-    sprintf(str, "= 30 POINTS");
-        vTaskDelay(600);
-    //animation loop
-    for (int i=0; i<=strlen(str); i++)
-        {
-           str9[i]=str[i];
-             vTaskDelay(xDelay);
-         
-        }vTaskSuspend(Text_Task_5);
-}
 
-void Move_Text_6(void *pvParameters)
-{   static char str[50] = {0};
-    sprintf(str, "= 20 POINTS");
-    vTaskDelay(800);
-    //animation loop
-    for (int i=0; i<=strlen(str); i++)
-        {
-           str10[i]=str[i];
-             vTaskDelay(xDelay);
-         
-        }vTaskSuspend(Text_Task_6);
-}
-
-void Move_Text_7(void *pvParameters)
-{   static char str[50] = {0};
-    sprintf(str, "= 10 POINTS");
-    vTaskDelay(1000);
-    //animation loop
-    for (int i=0; i<=strlen(str); i++)
-        {
-           str11[i]=str[i];
-             vTaskDelay(xDelay);
-         
-        }vTaskSuspend(Text_Task_7);
-}
 
 void PlayText()
 { int y=70;
@@ -578,21 +659,17 @@ if (!tumGetTextSize((char *)str1, &text_width, NULL))
 void Move_enemy(void *pvParameters)
 {   for(;;)
     {
-    for(;;)
+    for(int i=0;i<8;i++)
     {
-        speed+=8;
-    if (speed>145)
-        break;
-
-        vTaskDelay(xDelay*3);
+        speed+=tumDrawGetLoadedImageWidth(logo_image_10)*0.6;;
+    
+        vTaskDelay(xDelay*8);
     }
-        for(;;)
+       for(int i=0;i<8;i++)
     {
-        speed-=8;
-    if (speed<=0)
-        break;
-
-        vTaskDelay(xDelay*3);
+        speed-=tumDrawGetLoadedImageWidth(logo_image_10)*0.6;;
+ 
+        vTaskDelay(xDelay*8);
     }
   }
 }
@@ -661,6 +738,65 @@ if (!tumGetTextSize((char *)str9, &text_width, NULL))
                     __FUNCTION__);
 
 
+}
+
+
+void Move_text_all(void *pvParameters)
+{
+ static char str[50] = {0};
+    sprintf(str, "[P]LAY");
+    //animation loop
+    for (int i=0; i<=strlen(str); i++)
+        {
+           str1[i]=str[i];
+             vTaskDelay(xDelay);
+         
+        }
+    
+     sprintf(str, "SPACE INVADERS");
+        //animation loop
+    for (int i=0; i<=strlen(str); i++)
+        {
+           str2[i]=str[i];
+             vTaskDelay(xDelay);
+         
+        }
+
+    sprintf(str, "* SCORE ADVANCE TABE *");
+       
+    //animation loop
+    for (int i=0; i<=strlen(str); i++)
+        {
+           str3[i]=str[i];
+             vTaskDelay(xDelay);
+         
+        }
+     sprintf(str, "= 30 POINTS");
+       
+    //animation loop
+    for (int i=0; i<=strlen(str); i++)
+        {
+           str9[i]=str[i];
+             vTaskDelay(xDelay);
+        }
+     sprintf(str, "= 20 POINTS");
+  
+    //animation loop
+    for (int i=0; i<=strlen(str); i++)
+        {
+           str10[i]=str[i];
+             vTaskDelay(xDelay);
+         
+        }
+         sprintf(str, "= 10 POINTS");
+    
+    //animation loop
+    for (int i=0; i<=strlen(str); i++)
+        {
+           str11[i]=str[i];
+             vTaskDelay(xDelay);
+         
+        }vTaskDelete(Text_task_all);
 }
 void vDrawLogo(void)
 
@@ -892,69 +1028,156 @@ void Move_Player(void *pvParameters)
 }
 
 
-void xCreatBlock_1( )
-{       int x=80;
-        int y=320;
-
- wall_t *left_block =
-        createWall(x, y, BLOCK_THICKNESS,
-                   BLOCK_THICKNESS, 0.2,Lime , NULL, NULL);
-    // Right wall
-    wall_t *right_block =
-        createWall(x+2*BLOCK_THICKNESS, y,BLOCK_THICKNESS,
-                   BLOCK_THICKNESS, 0.2, Lime, NULL, NULL);
-    // Top wall
-    wall_t *top_block =
-        createWall(x+BLOCK_THICKNESS, y ,BLOCK_THICKNESS
-                   , BLOCK_THICKNESS,
-                   0.2, Lime, NULL, NULL);
-    // Bottom wall
-    wall_t *bottom_block_left =
-        createWall(x, y-BLOCK_THICKNESS,
-                  BLOCK_THICKNESS,BLOCK_THICKNESS,
-                   0.2, Lime, NULL, NULL);
-
-    wall_t *bottom_block_right =
-        createWall(x+2*BLOCK_THICKNESS ,y-BLOCK_THICKNESS,
-                   BLOCK_THICKNESS, BLOCK_THICKNESS,
-                   0.2, Lime, NULL, NULL);
-
-
-
-        for (;;)
-        {
+void vDrawBlock_1( int q,int p,int w, int h)
+{   
      // Draw the BLOCKs
-                checkDraw(tumDrawFilledBox(
-                              left_block->x1, left_block->y1,
-                              left_block->w, left_block->h,
-                              left_block->colour),
-                          __FUNCTION__);
-                checkDraw(tumDrawFilledBox(right_block->x1,
-                                           right_block->y1,
-                                           right_block->w,
-                                           right_block->h,
-                                           right_block->colour),
-                          __FUNCTION__);
-                checkDraw(tumDrawFilledBox(
-                              top_block->x1, top_block->y1,
-                              top_block->w, top_block->h,
-                              top_block->colour),
-                          __FUNCTION__);
-                checkDraw(tumDrawFilledBox(bottom_block_left->x1,
-                                           bottom_block_left->y1,
-                                           bottom_block_left->w,
-                                           bottom_block_left->h,
-                                           bottom_block_left->colour),
-                          __FUNCTION__);
+            for (int j=sizey-5;j>=sizey-3;j--)
+            {
 
-                checkDraw(tumDrawFilledBox(bottom_block_right->x1,
-                                           bottom_block_right->y1,
-                                           bottom_block_right->w,
-                                           bottom_block_right->h,
-                                           bottom_block_right->colour),
-                          __FUNCTION__);
+                for(int k=0;k<4;k++)
+                {
+                    if(world[j][k+3]==block){
+                    checkDraw(tumDrawFilledBox(
+                                q+k*w, p+(j-(sizey-5))*h,
+                                w, h,
+                                Lime),
+                            __FUNCTION__);
+                    }
+                }
             }
+          //1.Block
+            if (world[sizey-5][3]==block)
+               checkDraw(tumDrawFilledBox(
+                                q, p,
+                                w, h,
+                                Lime),
+                            __FUNCTION__);
+            if (world[sizey-5][4]==block)
+               checkDraw(tumDrawFilledBox(
+                                q+w, p,
+                                w, h,
+                                Lime),
+                            __FUNCTION__);
+            if (world[sizey-4][3]==block)
+               checkDraw(tumDrawFilledBox(
+                                q, p+h,
+                                w, h,
+                                Lime),
+                            __FUNCTION__);
+            if (world[sizey-4][4]==block)
+               checkDraw(tumDrawFilledBox(
+                                q+w, p+h,
+                                w, h,
+                                Lime),
+                            __FUNCTION__);
+    
 }
+
+void vDrawBlock_2( int q,int p,int w, int h)
+{   q=q+9*w;
+    int x1=10;
+    int x2=11;
+          //2.Block
+            if (world[sizey-5][x1]==block)
+               checkDraw(tumDrawFilledBox(
+                                q, p,
+                                w, h,
+                                Lime),
+                            __FUNCTION__);
+            if (world[sizey-5][x2]==block)
+               checkDraw(tumDrawFilledBox(
+                                q+w, p,
+                                w, h,
+                                Lime),
+                            __FUNCTION__);
+            if (world[sizey-4][x1]==block)
+               checkDraw(tumDrawFilledBox(
+                                q, p+h,
+                                w, h,
+                                Lime),
+                            __FUNCTION__);
+            if (world[sizey-4][x2]==block)
+               checkDraw(tumDrawFilledBox(
+                                q+w, p+h,
+                                w, h,
+                                Lime),
+                            __FUNCTION__);
+
+               
+}
+
+void vDrawBlock_3( int q,int p,int w, int h)
+{   q=q+14*w;
+    int x1=13;
+    int x2=14;
+          //2.Block
+            if (world[sizey-5][x1]==block)
+               checkDraw(tumDrawFilledBox(
+                                q, p,
+                                w, h,
+                                Lime),
+                            __FUNCTION__);
+            if (world[sizey-5][x2]==block)
+               checkDraw(tumDrawFilledBox(
+                                q+w, p,
+                                w, h,
+                                Lime),
+                            __FUNCTION__);
+            if (world[sizey-4][x1]==block)
+               checkDraw(tumDrawFilledBox(
+                                q, p+h,
+                                w, h,
+                                Lime),
+                            __FUNCTION__);
+            if (world[sizey-4][x2]==block)
+               checkDraw(tumDrawFilledBox(
+                                q+w, p+h,
+                                w, h,
+                                Lime),
+                            __FUNCTION__);
+
+               
+}
+void vDrawBlock_4( int q,int p,int w, int h)
+{   q=q+19*w;
+    int x1=18;
+    int x2=119;
+          //2.Block
+            if (world[sizey-5][x1]==block)
+               checkDraw(tumDrawFilledBox(
+                                q, p,
+                                w, h,
+                                Lime),
+                            __FUNCTION__);
+            if (world[sizey-5][x2]==block)
+               checkDraw(tumDrawFilledBox(
+                                q+w, p,
+                                w, h,
+                                Lime),
+                            __FUNCTION__);
+            if (world[sizey-4][x1]==block)
+               checkDraw(tumDrawFilledBox(
+                                q, p+h,
+                                w, h,
+                                Lime),
+                            __FUNCTION__);
+            if (world[sizey-4][x2]==block)
+               checkDraw(tumDrawFilledBox(
+                                q+w, p+h,
+                                w, h,
+                                Lime),
+                            __FUNCTION__);
+
+               
+}
+void vDrawBlock_al(int q,int p,int w, int h)
+{
+    vDrawBlock_1( q, p, w, h);
+    vDrawBlock_2( q, p, w, h);
+    vDrawBlock_3( q, p, w, h);
+    vDrawBlock_4( q, p, w, h);
+}
+
 void xCreatBlock_2( )
 {       int x=80+7*BLOCK_THICKNESS;
         int y=320;
@@ -1020,8 +1243,8 @@ void xCreatBlock_2( )
 }
 
 void vDraw_Player(int p )
-{ int x=CAVE_SIZE_X+p;
-    int y=SCREEN_HEIGHT-120;
+{ int x=player_offsetX +p;
+    int y=world_offsetY+12*tumDrawGetLoadedImageHeight(logo_image_10)*0.6 ;
 
   	   tumDrawSetLoadedImageScale 	( logo_image_player,
 		                         0.25
@@ -1035,7 +1258,7 @@ void vDraw_Player(int p )
 }
 void vDraw_PlayerLife()
 {   int x=180;
-    int y=SCREEN_HEIGHT-80;
+     int y=world_offsetY+14*tumDrawGetLoadedImageHeight(logo_image_10)*0.6 ;
     static char str[10] = { 0 };
     sprintf(str, "%d" ,life);
     tumFontSetSize((ssize_t)20);
@@ -1096,67 +1319,7 @@ void vDraw_Mothership()
 
 
 
-void Move_Text_1(void *pvParameters)
-{   static char str[50] = {0};
-    sprintf(str, "INSERT COIN");
-    //animation loop
-    for (int i=0; i<=12; i++)
-        {
-           str5[i]=str[i];
-             vTaskDelay(xDelay);
-         
-        }vTaskSuspend(Text_Task_1);
-       
-}
-void Move_Text_2(void *pvParameters)
-{       static char str[50] = {0};
-        sprintf(str, "< 1 OR 2 PLAYERS >");
-   
-            vTaskDelay(150);
-    //animation loop
-    
-    for (int j=0; j<=19; j++)
-        {
-           str6[j]=str[j];
-             vTaskDelay(xDelay);
-         
-        }vTaskSuspend(Text_Task_2);
-   
 
-}
-void Move_Text_3(void *pvParameters)
-{     
-     static char str[50] = {0};
-    sprintf(str, "* 1 PLAYER    1 COIN");  
-
-
-      vTaskDelay(400);
-  
-    //animation loop
-    for ( int k=0; k<=21; k++)
-        {
-           str7[k]=str[k];
-             vTaskDelay(xDelay);
-         
-        }  vTaskSuspend(Text_Task_3); 
-   
-}
-void Move_Text_4(void *pvParameters)
-{
-      static char str[50] = {0};
-    sprintf(str, "* 2 PLAYER    2 COINS");
-
-        vTaskDelay(600);
-   
-   //animation loop
-    for (int l=0; l<=22; l++)
-        {
-           str8[l]=str[l];
-             vTaskDelay(xDelay);
-         
-        } vTaskSuspend(Text_Task_4);
-
-}
 
 void DrawText(int x, int y)
 {
@@ -1196,6 +1359,45 @@ void vDrawStaticItems(void)
 	//vDrawHelpText();
 	vDrawLogo();
 }
+
+void Move_text_menu(void *pvParamemter)
+{
+    static char str[50] = {0};
+    sprintf(str, "INSERT COIN");
+    //animation loop
+    for (int i=0; i<=strlen(str); i++)
+        {
+           str5[i]=str[i];
+             vTaskDelay(xDelay);
+         
+        }
+
+        sprintf(str, "< 1 OR 2 PLAYERS >");
+   
+          
+    for (int i=0; i<=strlen(str); i++)
+        {
+           str6[i]=str[i];
+             vTaskDelay(xDelay);
+         
+        }
+       sprintf(str, "* 1 PLAYER    1 COIN");  
+          for ( int i=0; i<=strlen(str); i++)
+        {
+           str7[i]=str[i];
+             vTaskDelay(xDelay);
+         
+        }
+      sprintf(str, "* 2 PLAYER    2 COINS");
+    for (int i=0; i<=strlen(str); i++)
+        {
+           str8[i]=str[i];
+             vTaskDelay(xDelay);
+         
+        }vTaskSuspend(xtask_menu);
+}
+
+
 
 
 static int vCheckStateInput(void)
@@ -1386,12 +1588,7 @@ void vTCPDemoTask(void *pvParameters)
 
 void vDemoTask2(void *pvParameters)
 { 
-    xTaskCreate(Move_Text_8, "MOVE_TEXT_8", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &Text_Task_8 );
-    xTaskCreate(Move_Text_9, "MOVE_TEXT_9", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &Text_Task_9 );
-     xTaskCreate(Move_Text_10, "MOVE_TEXT_9", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &Text_Task_10 );
-    xTaskCreate(Move_Text_5, "MOVE_TEXT_5", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &Text_Task_5 );
-    xTaskCreate(Move_Text_6, "MOVE_TEXT_6", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &Text_Task_6 );
-    xTaskCreate(Move_Text_7, "MOVE_TEXT_7", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &Text_Task_7 );
+    xTaskCreate(Move_text_all, "MOVE_TEXT_all", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &Text_task_all );
 
     	logo_image_30 = tumDrawLoadImage(LOGO_30);
 		logo_image_20 = tumDrawLoadImage(LOGO_20);
@@ -1436,21 +1633,11 @@ void vDemoTask1(void *pvParameters)
 
     int y=0;
     int x=50;
-          
+      
     tumFontSetSize((ssize_t)23);
     
-	xTaskCreate(Move_Text_1, "MOVE_TEXT_1", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &Text_Task_1 );
-   
-    
-    xTaskCreate(Move_Text_2, "MOVE_TEXT_2", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &Text_Task_2 ); 
+	  xTaskCreate(Move_text_menu, "MOVE_TEXT_MEMU", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &xtask_menu );  
   
-   
-    xTaskCreate(Move_Text_3, "MOVE_TEXT_3", mainGENERIC_STACK_SIZE,NULL, mainGENERIC_PRIORITY, &Text_Task_3 ); 
-      
-    
-     xTaskCreate(Move_Text_4, "MOVE_TEXT_4", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY , &Text_Task_4 );  
-  
-   
 
 	while (1) {
 		if (DrawSignal)
@@ -1469,7 +1656,7 @@ void vDemoTask1(void *pvParameters)
                 DrawText(x, y);
 				Score_Title (  score_1, high_score ,score_2);
 			    xSemaphoreGive(ScreenLock);
-               
+              
 				// Check for state change
 				vCheckStateInput();
                 vCheckStateInput2();
@@ -1498,13 +1685,16 @@ sprintf(str11," ");
 
 void vDemoTask3(void *pvParameters)
 { 
+  Enemyfield();
  
 logo_image_player = tumDrawLoadImage(LOGO_player);
 logo_image_player_1= tumDrawLoadImage(LOGO_player_1);
-    int x=30;
-    int y=90;
+    int x=world_offsetX;
+    int y=world_offsetY;
+    int w=tumDrawGetLoadedImageWidth(logo_image_10)*0.6;
+    int h=tumDrawGetLoadedImageHeight(logo_image_10)*0.6;
 xTaskCreate(Move_enemy, "MOVE_enemy", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &enemy_Task );
-
+//xTaskCreate(move_enemy_position,"enemy_position",mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &enemy_position );
 xTaskCreate(Move_Player, "MOVE_Player", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &Player_Task );
 //xTaskCreate(xCreatBlock_1, "Block_1", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &Blcok_Task_1 );
 //xTaskCreate(xCreatBlock_2, "Block_2", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &Blcok_Task_2 );
@@ -1518,7 +1708,11 @@ xTaskCreate(Move_Player, "MOVE_Player", mainGENERIC_STACK_SIZE, NULL, mainGENERI
                 
                 checkDraw(tumDrawClear(Black), __FUNCTION__);
                 Score_Title (  score_1, high_score ,score_2);
-                vDrawHelpText();           
+                vDrawHelpText(); 
+              
+
+                vDrawBlock_all(x+4*w,world_offsetY+9*h,w,h) ; 
+
                 vDrawenemy_30(x,y,speed);
                 vDrawenemy_20(x,y,speed);
                 vDrawenemy_10(x,y,speed);
@@ -1529,6 +1723,7 @@ xTaskCreate(Move_Player, "MOVE_Player", mainGENERIC_STACK_SIZE, NULL, mainGENERI
                 vCheckStateInput_R();
                 vDraw_PlayerLife();
                 vCheckStateInputM();
+             
                 if (life==0)
                 Gameover();
             }
