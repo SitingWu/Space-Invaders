@@ -97,6 +97,8 @@ static TaskHandle_t TCPDemoTask = NULL;
 static TaskHandle_t MQDemoTask = NULL;
 static TaskHandle_t DemoSendTask = NULL;
 
+
+
 static QueueHandle_t StateQueue = NULL;
 static SemaphoreHandle_t DrawSignal = NULL;
 static SemaphoreHandle_t ScreenLock = NULL;
@@ -118,13 +120,13 @@ int speed=0;
 int button1=0;
 int life = 3;
 
-TaskHandle_t Text_task_all=NULL;
-TaskHandle_t xtask_menu=NULL;
-TaskHandle_t enemy_Task=NULL;
-TaskHandle_t Player_Task=NULL;
-TaskHandle_t Blcok_Task_1=NULL;
-TaskHandle_t Blcok_Task_2=NULL;
-TaskHandle_t enemy_position=NULL;
+static TaskHandle_t Text_task_all=NULL;
+static TaskHandle_t xtask_menu=NULL;
+static TaskHandle_t enemy_Task=NULL;
+static TaskHandle_t Player_Task=NULL;
+
+static TaskHandle_t enemy_position=NULL;
+static TaskHandle_t help_text_play= NULL;
 
 typedef struct buttons_buffer {
 	unsigned char buttons[SDL_NUM_SCANCODES];
@@ -135,7 +137,7 @@ static buttons_buffer_t buttons = { 0 };
     static char str1[50] = {0};
     static char str2[50] = {0};   
     static char str3[50] = {0};
-    
+     static char str4[50] = {0};
     static char str5[50] = {0};
     static char str6[50] = {0};   
     static char str7[50] = {0};
@@ -176,40 +178,27 @@ void Enemyfield()
     world[sizey-1][sizex/2]=player;
     
     //enemy30
-    for (x=0;x<=16;x++)
+    for (x=0;x<=14;x+=2)
 
         { 
-         if(!x%2)
+       
         world[0][x]=enemy30;
         }
     //enemy20
     for (y=1;y<3;y++)
     {
-        for (x=0;x<=16;x++)
+        for (x=0;x<=14;x+=2)
         {
-            if(!x%2)
-        world[0][x]=enemy20;
+        world[y][x]=enemy20;
         }
 
     }
-    //enemy20
-    for (y=1;y<3;y++)
-    {
-        for (x=0;x<=16;x++)
-        {
-            if(!x%2)
-        world[0][x]=enemy20;
-     
-        }
-    }
-
     //enemy10
     for (y=3;y<5;y++)
     {
-        for (x=0;x<=16;x++)
-        {
-            if(!x%2)
-        world[0][x]=enemy10;
+        for (x=0;x<=16;x+=2)
+       {
+               world[y][x]=enemy10;
         }
     }
 
@@ -740,7 +729,6 @@ if (!tumGetTextSize((char *)str9, &text_width, NULL))
 
 }
 
-
 void Move_text_all(void *pvParameters)
 {
  static char str[50] = {0};
@@ -835,48 +823,58 @@ void vDrawLogo(void)
 	
 	
 }
-void vDrawenemy_30(int x,int y,int v)
+void vDrawenemy_30(int x,int y,int v,int x1,int y1)
 {   int Distand= 50;
     x+=v;
+
+    
   	   tumDrawSetLoadedImageScale 	( 	logo_image_30,
 		                         0.03
 	                                ) ;	
+        if (world[y1][x1]==enemy30)
         checkDraw(
 			tumDrawLoadedImage(logo_image_30,
                                  x,
 					             y       ),
-                          __FUNCTION__);  
+                          __FUNCTION__); 
+         if (world[y1][x1+2]==enemy30)
          checkDraw(
 			tumDrawLoadedImage(logo_image_30,
                                  x+Distand,
 					             y       ),
                           __FUNCTION__);
+        if (world[y1][x1+4]==enemy30)
          checkDraw(
 			tumDrawLoadedImage(logo_image_30,
                                  x+Distand*2,
 					             y       ),
                           __FUNCTION__);  
+        if (world[y1][x1+6]==enemy30)
                  checkDraw(
 			tumDrawLoadedImage(logo_image_30,
                                  x+Distand*3,
 					             y       ),
-                          __FUNCTION__);      
+                          __FUNCTION__);  
+        if (world[y1][x1+8]==enemy30)    
                 checkDraw(
 			tumDrawLoadedImage(logo_image_30,
                                  x+Distand*4,
 					             y       ),
                           __FUNCTION__);  
-        		
+
+        if (world[y1][x1+10]==enemy30)		
                 checkDraw(
 			tumDrawLoadedImage(logo_image_30,
                                  x+Distand*5,
 					             y       ),
                           __FUNCTION__); 
+         if (world[y1][x1+12]==enemy30)	
                 checkDraw(
 			tumDrawLoadedImage(logo_image_30,
                                  x+Distand*6,
 					             y       ),
                           __FUNCTION__);  
+         if (world[y1][x1+14]==enemy30)	
                 checkDraw(
 			tumDrawLoadedImage(logo_image_30,
                                  x+Distand*7,
@@ -887,50 +885,60 @@ void vDrawenemy_30(int x,int y,int v)
         		
 } 
 
-void vDrawenemy_20(int x, int y,int v)
+void vDrawenemy_20(int x, int y,int v,int x1, int y1)
 {       y+=35;
         x+=5+v;
 
-  	    int Distand= 50;
-  	   tumDrawSetLoadedImageScale 	( 	logo_image_20,
-		                         0.12
-	                                ) ;	
+  	int Distand= 50;
+  	 
+         tumDrawSetLoadedImageScale 	( 	logo_image_20,
+		                         0.115
+	                               ) ;	
+    if (world[y1][x1]==enemy20) 
         checkDraw(
 			tumDrawLoadedImage(logo_image_20,
                                  x,
 					             y       ),
                           __FUNCTION__);  
+                          
+     if (world[y1][x1+2]==enemy20)
          checkDraw(
 			tumDrawLoadedImage(logo_image_20,
                                  x+Distand,
 					             y       ),
                           __FUNCTION__);
+     if (world[y1][x1+4]==enemy20)
          checkDraw(
 			tumDrawLoadedImage(logo_image_20,
                                  x+Distand*2,
 					             y       ),
                           __FUNCTION__);  
+     if (world[y1][x1+6]==enemy20)
                  checkDraw(
 			tumDrawLoadedImage(logo_image_20,
                                  x+Distand*3,
 					             y       ),
-                          __FUNCTION__);      
+                          __FUNCTION__);   
+        if (world[y1][x1+8]==enemy20) 
                 checkDraw(
 			tumDrawLoadedImage(logo_image_20,
                                  x+Distand*4,
 					             y       ),
                           __FUNCTION__);  
+     if (world[y1][x1+10]==enemy20)
         		
                 checkDraw(
 			tumDrawLoadedImage(logo_image_20,
                                  x+Distand*5,
 					             y       ),
                           __FUNCTION__); 
+     if (world[y1][x1+12]==enemy20)
                 checkDraw(
 			tumDrawLoadedImage(logo_image_20,
                                  x+Distand*6,
 					             y       ),
-                          __FUNCTION__);  
+                          __FUNCTION__); 
+      if (world[y1][x1+14]==enemy20)
                 checkDraw(
 			tumDrawLoadedImage(logo_image_20,
                                  x+Distand*7,
@@ -938,49 +946,56 @@ void vDrawenemy_20(int x, int y,int v)
                           __FUNCTION__);  
         		
 }
-void vDrawenemy_10(int x,int y,int v)
+void vDrawenemy_10(int x,int y,int v,int x1,int y1)
 {   int Distand= 50;
     y+=65;
     x+=v;
   	   tumDrawSetLoadedImageScale 	( 	logo_image_10,
-		                         0.05
+		                         0.04
 	                                ) ;	
+    if (world[y1][x1]==enemy10)
         checkDraw(
 			tumDrawLoadedImage(logo_image_10,
                                  x,
 					             y       ),
                           __FUNCTION__);  
+    if (world[y1][x1+2]==enemy10)
          checkDraw(
 			tumDrawLoadedImage(logo_image_10,
                                  x+Distand,
 					             y       ),
                           __FUNCTION__);
+        if (world[y1][x1+4]==enemy10)
          checkDraw(
 			tumDrawLoadedImage(logo_image_10,
                                  x+Distand*2,
 					             y       ),
                           __FUNCTION__);  
+        if (world[y1][x1+6]==enemy10)
                  checkDraw(
 			tumDrawLoadedImage(logo_image_10,
                                  x+Distand*3,
 					             y       ),
-                          __FUNCTION__);      
+                          __FUNCTION__); 
+            if (world[y1][x1+8]==enemy10)     
                 checkDraw(
 			tumDrawLoadedImage(logo_image_10,
                                  x+Distand*4,
 					             y       ),
                           __FUNCTION__);  
-        		
+            if (world[y1][x1+10]==enemy10)		
                 checkDraw(
 			tumDrawLoadedImage(logo_image_10,
                                  x+Distand*5,
 					             y       ),
                           __FUNCTION__); 
+            if (world[y1][x1+12]==enemy10)	
                 checkDraw(
 			tumDrawLoadedImage(logo_image_10,
                                  x+Distand*6,
 					             y       ),
-                          __FUNCTION__);  
+                          __FUNCTION__); 
+        if (world[y1][x1+14]==enemy10)	 
                 checkDraw(
 			tumDrawLoadedImage(logo_image_10,
                                  x+Distand*7,
@@ -1244,10 +1259,10 @@ void xCreatBlock_2( )
 
 void vDraw_Player(int p )
 { int x=player_offsetX +p;
-    int y=world_offsetY+12*tumDrawGetLoadedImageHeight(logo_image_10)*0.6 ;
+    int y=world_offsetY+14.5*tumDrawGetLoadedImageHeight(logo_image_10)*0.6 ;
 
   	   tumDrawSetLoadedImageScale 	( logo_image_player,
-		                         0.25
+		                         0.22
 	                                ) ;	
         checkDraw(
 			tumDrawLoadedImage(logo_image_player,
@@ -1258,7 +1273,7 @@ void vDraw_Player(int p )
 }
 void vDraw_PlayerLife()
 {   int x=180;
-     int y=world_offsetY+14*tumDrawGetLoadedImageHeight(logo_image_10)*0.6 ;
+     int y=world_offsetY+18*tumDrawGetLoadedImageHeight(logo_image_10)*0.6 ;
     static char str[10] = { 0 };
     sprintf(str, "%d" ,life);
     tumFontSetSize((ssize_t)20);
@@ -1622,16 +1637,8 @@ void vDemoTask2(void *pvParameters)
 	}
 }
 
-void playBallSound(void *args)
-{
-	tumSoundPlaySample(a3);
-}
-
-
 void vDemoTask1(void *pvParameters)
-{  
-
-    int y=0;
+{   int y=0;
     int x=50;
       
     tumFontSetSize((ssize_t)23);
@@ -1650,10 +1657,8 @@ void vDemoTask1(void *pvParameters)
                 xSemaphoreTake(ScreenLock, portMAX_DELAY);
 				checkDraw(tumDrawClear(Black), __FUNCTION__);
 			
-				// Clear screen
- 
-				
-                DrawText(x, y);
+			// Clear screen
+ 	            DrawText(x, y);
 				Score_Title (  score_1, high_score ,score_2);
 			    xSemaphoreGive(ScreenLock);
               
@@ -1696,8 +1701,7 @@ logo_image_player_1= tumDrawLoadImage(LOGO_player_1);
 xTaskCreate(Move_enemy, "MOVE_enemy", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &enemy_Task );
 //xTaskCreate(move_enemy_position,"enemy_position",mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &enemy_position );
 xTaskCreate(Move_Player, "MOVE_Player", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &Player_Task );
-//xTaskCreate(xCreatBlock_1, "Block_1", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &Blcok_Task_1 );
-//xTaskCreate(xCreatBlock_2, "Block_2", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &Blcok_Task_2 );
+
      while (1) {
         if (DrawSignal)
             if (xSemaphoreTake(DrawSignal, portMAX_DELAY) ==
@@ -1713,9 +1717,11 @@ xTaskCreate(Move_Player, "MOVE_Player", mainGENERIC_STACK_SIZE, NULL, mainGENERI
 
                 vDrawBlock_all(x,world_offsetY+9*h,w,h) ; 
 
-                vDrawenemy_30(x,y,speed);
-                vDrawenemy_20(x,y,speed);
-                vDrawenemy_10(x,y,speed);
+                vDrawenemy_30(x,y,speed,0,0);
+                vDrawenemy_20(x,y,speed,0,1);
+                vDrawenemy_20(x,y+h+10,speed,0,2);
+                vDrawenemy_10(x+5,y+h+10,speed,0,3);
+                vDrawenemy_10(x+5,y+2*h+15,speed,0,4);
                 vDraw_Player(Position);
                 vDraw_Bullet(CAVE_SIZE_X+Position+15, 400-speed*2);
                 xSemaphoreGive(ScreenLock);
@@ -1731,7 +1737,8 @@ xTaskCreate(Move_Player, "MOVE_Player", mainGENERIC_STACK_SIZE, NULL, mainGENERI
 
 }
 void vDemoTask4(void *pvParameters)
-{    
+{ 
+   
     logo_image_player = tumDrawLoadImage(LOGO_player);
     logo_image_mothership= tumDrawLoadImage(LOGO_mothership);
     logo_image_player_1=  tumDrawLoadImage(LOGO_player_1);
@@ -1748,7 +1755,7 @@ void vDemoTask4(void *pvParameters)
 				checkDraw(tumDrawClear(Black), __FUNCTION__);
 			
 				// Clear screen
- 
+            
 				vDraw_Player(Position);
                 vDrawHelpText(); 
 				Score_Title (  score_1, high_score ,score_2);
