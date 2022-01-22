@@ -217,16 +217,16 @@ void Enemyfield()
 
     //Blöckern
     for(y=sizey-3;y> sizey-6;y--)
-    {      int abstand=6; 
-        for(x=0;x<4;x++)
+    {      int abstand=5; 
+        for(x=0;x<2;x++)
         
             world[y][x+3]=block;
         
-        for(x=0;x<4;x++)
+        for(x=0;x<2;x++)
             world[y][x+3+abstand]=block;
-        for(x=0;x<4;x++)
+        for(x=0;x<2;x++)
             world[y][x+3+abstand*2]=block;
-        for(x=0;x<4;x++)
+        for(x=0;x<2;x++)
            world[y][x+3+abstand*3]=block;
     }
 
@@ -1029,9 +1029,9 @@ void Move_Player(void *pvParameters)
 
 
 void vDrawBlock_1( int q,int p,int w, int h)
-{   
+{  q= q+4*w;
      // Draw the BLOCKs
-            for (int j=sizey-5;j>=sizey-3;j--)
+           /*for (int j=sizey-5;j>=sizey-3;j--)
             {
 
                 for(int k=0;k<4;k++)
@@ -1044,7 +1044,7 @@ void vDrawBlock_1( int q,int p,int w, int h)
                             __FUNCTION__);
                     }
                 }
-            }
+            }*/  //funtioniert nicht
           //1.Block
             if (world[sizey-5][3]==block)
                checkDraw(tumDrawFilledBox(
@@ -1075,8 +1075,8 @@ void vDrawBlock_1( int q,int p,int w, int h)
 
 void vDrawBlock_2( int q,int p,int w, int h)
 {   q=q+9*w;
-    int x1=10;
-    int x2=11;
+    int x1=8;
+    int x2=9;
           //2.Block
             if (world[sizey-5][x1]==block)
                checkDraw(tumDrawFilledBox(
@@ -1141,7 +1141,7 @@ void vDrawBlock_3( int q,int p,int w, int h)
 void vDrawBlock_4( int q,int p,int w, int h)
 {   q=q+19*w;
     int x1=18;
-    int x2=119;
+    int x2=19;
           //2.Block
             if (world[sizey-5][x1]==block)
                checkDraw(tumDrawFilledBox(
@@ -1170,7 +1170,7 @@ void vDrawBlock_4( int q,int p,int w, int h)
 
                
 }
-void vDrawBlock_al(int q,int p,int w, int h)
+void vDrawBlock_all(int q,int p,int w, int h)
 {
     vDrawBlock_1( q, p, w, h);
     vDrawBlock_2( q, p, w, h);
@@ -1711,7 +1711,7 @@ xTaskCreate(Move_Player, "MOVE_Player", mainGENERIC_STACK_SIZE, NULL, mainGENERI
                 vDrawHelpText(); 
               
 
-                vDrawBlock_all(x+4*w,world_offsetY+9*h,w,h) ; 
+                vDrawBlock_all(x,world_offsetY+9*h,w,h) ; 
 
                 vDrawenemy_30(x,y,speed);
                 vDrawenemy_20(x,y,speed);
