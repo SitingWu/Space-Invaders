@@ -31,8 +31,8 @@
 #define STATE_TWO 1
 #define STATE_Three 2
 #define NEXT_TASK_1 0
-#define NEXT_TASK_2 1 
-#define PREV_TASK   2
+#define NEXT_TASK_2 1
+#define PREV_TASK 2
 
 #define STARTING_STATE STATE_ONE
 
@@ -44,13 +44,10 @@
 #define CAVE_X CAVE_SIZE_X / 2
 #define CAVE_Y CAVE_SIZE_Y / 2
 #define BLOCK_THICKNESS 15
-#define world_offsetX 30
+#define world_offsetX 20
 #define world_offsetY 85
 
-
-
-#define player_offsetX  SCREEN_WIDTH/2
-
+#define player_offsetX SCREEN_WIDTH / 2
 
 //Bildern define
 
@@ -61,7 +58,6 @@
 #define LOGO_player_1 "player_1"
 #define LOGO_mothership "mothership"
 
-
 #define UDP_BUFFER_SIZE 2000
 #define UDP_TEST_PORT_1 1234
 #define UDP_TEST_PORT_2 4321
@@ -69,7 +65,7 @@
 #define MSG_QUEUE_MAX_MSG_COUNT 10
 #define TCP_BUFFER_SIZE 2000
 #define TCP_TEST_PORT 2222
-#define  xDelay 10
+#define xDelay 10
 #ifdef TRACE_FUNCTIONS
 #include "tracer.h"
 #endif
@@ -97,12 +93,9 @@ static TaskHandle_t TCPDemoTask = NULL;
 static TaskHandle_t MQDemoTask = NULL;
 static TaskHandle_t DemoSendTask = NULL;
 
-
-
 static QueueHandle_t StateQueue = NULL;
 static SemaphoreHandle_t DrawSignal = NULL;
 static SemaphoreHandle_t ScreenLock = NULL;
-
 
 static image_handle_t logo_image_30 = NULL;
 static image_handle_t logo_image_20 = NULL;
@@ -111,44 +104,17 @@ static image_handle_t logo_image_player = NULL;
 static image_handle_t logo_image_player_1 = NULL;
 static image_handle_t logo_image_mothership = NULL;
 
-
-// globale variable
-int score_1=0;
-int high_score=0;
-int score_2=0;
-int speed=0;
-int button1=0;
-int life = 3;
-
-static TaskHandle_t Text_task_all=NULL;
-static TaskHandle_t xtask_menu=NULL;
-static TaskHandle_t enemy_Task=NULL;
-static TaskHandle_t Player_Task=NULL;
-
-static TaskHandle_t enemy_position=NULL;
-static TaskHandle_t help_text_play= NULL;
-
-typedef struct buttons_buffer {
-	unsigned char buttons[SDL_NUM_SCANCODES];
-	SemaphoreHandle_t lock;
-} buttons_buffer_t;
-
-static buttons_buffer_t buttons = { 0 };
-    static char str1[50] = {0};
-    static char str2[50] = {0};   
-    static char str3[50] = {0};
-     static char str4[50] = {0};
-    static char str5[50] = {0};
-    static char str6[50] = {0};   
-    static char str7[50] = {0};
-    static char str8[50] = {0}; 
-    static char str9[50] = {0};   
-    static char str10[50] = {0};
-    static char str11[50] = {0}; 
-
-
+static TaskHandle_t Text_task_all = NULL;
+static TaskHandle_t xtask_menu = NULL;
+static TaskHandle_t enemy_Task = NULL;
+static TaskHandle_t Player_Task = NULL;
+static TaskHandle_t Check_kill_player = NULL;
+static TaskHandle_t Check_kill_enemy = NULL;
+static TaskHandle_t enemy_position = NULL;
+static TaskHandle_t help_text_play = NULL;
+static TaskHandle_t Check_Button_Input=NULL;
 //Anfang
-#define sizex 72
+#define sizex 22
 #define sizey 15
 #define empty 0
 #define enemy30 3
@@ -158,135 +124,180 @@ static buttons_buffer_t buttons = { 0 };
 #define block 5
 #define enemy_bullet 6
 #define player_bullet 7
+typedef struct buttons_buffer {
+	unsigned char buttons[SDL_NUM_SCANCODES];
+	SemaphoreHandle_t lock;
+} buttons_buffer_t;
 
-int world[sizey][sizex] ;
+static buttons_buffer_t buttons = { 0 };
+static char str1[50] = { 0 };
+static char str2[50] = { 0 };
+static char str3[50] = { 0 };
+static char str4[50] = { 0 };
+static char str5[50] = { 0 };
+static char str6[50] = { 0 };
+static char str7[50] = { 0 };
+static char str8[50] = { 0 };
+static char str9[50] = { 0 };
+static char str10[50] = { 0 };
+static char str11[50] = { 0 };
+
+// globale variable
+int score_1 = 0;
+int high_score = 0;
+int score_2 = 0;
+int speed = 0;
+int button1 = 0;
+int life = 3;
+int cur_enemy = 40;
+const int total_enemy = 40;
+int Ready_bullet_p = 1;
+int player_X = 14;
+int player_PositionX = CAVE_SIZE_X-50;
+int enemy_move=0;
+
+int world[sizey][sizex];
 void Enemyfield()
-{   int x=0;
-    int y=0;
-    //reset 
-    
-    for (y=0;y<=sizey;y++)
-    {
-        for(x=0;x<=sizex;x++)
-        {
-            world[y][x]= empty;
-            
-        }
-    }
-    
-    //player
-    world[sizey-1][sizex/2]=player;
-    
-    //enemy30
-    for (x=0;x<=14;x+=2)
+{
+	int x = 0;
+	int y = 0;
+	//reset
 
-        { 
-       
-        world[0][x]=enemy30;
-        }
-    //enemy20
-    for (y=1;y<3;y++)
-    {
-        for (x=0;x<=14;x+=2)
-        {
-        world[y][x]=enemy20;
-        }
+	for (y = 0; y <= sizey; y++) {
+		for (x = 0; x <= sizex; x++) {
+			world[y][x] = empty;
+		}
+	}
 
-    }
-    //enemy10
-    for (y=3;y<5;y++)
-    {
-        for (x=0;x<=16;x+=2)
-       {
-               world[y][x]=enemy10;
-        }
-    }
+	//player
+	world[sizey - 1][sizex / 2] = player;
 
-    
+	//enemy30
+	for (x = 0; x <= 14; x += 2)
 
-    //Blöckern
-    for(y=sizey-3;y> sizey-6;y--)
-    {      int abstand=5; 
-        for(x=0;x<2;x++)
-        
-            world[y][x+3]=block;
-        
-        for(x=0;x<2;x++)
-            world[y][x+3+abstand]=block;
-        for(x=0;x<2;x++)
-            world[y][x+3+abstand*2]=block;
-        for(x=0;x<2;x++)
-           world[y][x+3+abstand*3]=block;
-    }
+	{
+		world[0][x] = enemy30;
+	}
+	//enemy20
+	for (y = 1; y < 3; y++) {
+		for (x = 0; x <= 14; x += 2) {
+			world[y][x] = enemy20;
+		}
+	}
+	//enemy10
+	for (y = 3; y < 5; y++) {
+		for (x = 0; x <= 16; x += 2) {
+			world[y][x] = enemy10;
+		}
+	}
 
+	//Blöckern
+	for (y = sizey - 3; y > sizey - 6; y--) {
+		int abstand = 5;
+		for (x = 0; x < 2; x++)
+
+			world[y][x + 4] = block;
+
+		for (x = 0; x < 2; x++)
+			world[y][x + 4 + abstand] = block;
+		for (x = 0; x < 2; x++)
+			world[y][x + 4 + abstand * 2] = block;
+		for (x = 0; x < 2; x++)
+			world[y][x + 4 + abstand * 3] = block;
+	}
 }
 
 void move_enemy_position()
-{      int speedX=1;
-    vTaskDelay(xDelay);
-    for(;;)
-   { //int speedX=tumDrawGetloadedImageWide (logo_image_30);
-    for(int k=0;k<7;k++)
-    {
-        int x=0;
-        int y=0;
-    //reset 
-    
-    for (y=0;y<=sizey;y++)
-    {
-        for(x=0;x<=sizex;x++)
-        {
-            world[y][x]= empty;
-        }
-    }
-    
-    //player
-    //world[sizey-1][sizex/2]=player;
-    
-    //enemy30
-    for (x=0;x<=16;x++)
+{     
+    vTaskDelay(xDelay * 5);
+	for (;;)
+     {     
+             
+		for (int k = 1; k < 9; k++) {
+                enemy_move=k;
+                  printf("Enemy_Move %i\n",enemy_move);
+		         int x = 0;
+        	//enemy30
+			for (x = 0+k; x <= 14+k; x += 2)
 
-        { 
-         if(!x%2)
-        world[0][x+speedX]=enemy30;
-        }
-    //enemy20
-    for (y=1;y<3;y++)
-    {
-        for (x=0;x<=16;x++)
-        {
-            if(!x%2)
-        world[0][x+speedX]=enemy20;
-        }
+			{    if(world[0][x-1] == empty)
+                    world[0][x] = empty;
+                else
+               { 
+				world[0][x-1] = empty;
+				world[0][x] = enemy30;
+               }   
+			//enemy20
+			for (int y = 1; y <3; y++) {
+                 if(world[y][x-1] == empty)
+                    world[y][x] = empty;
+                else{
+					world[y][x-1] = empty;
+					world[y][x] = enemy20;
+				}
+            }
+			
+			//enemy10
+			for (int y = 3; y < 5; y++) {
+			
+			 if(world[y][x-1] == empty)
+                    world[y][x] = empty;
+                else{
+					world[y][x-1] = empty;
+					world[y][x] = enemy10;
+				}
+            }
+                printf("enemy_x=%i\n",x);
+			}vTaskDelay(xDelay * 8);
+                printf("Moving_left %i\n",k);
 
-    }
-    //enemy20
-    for (y=1;y<3;y++)
-    {
-        for (x=0;x<=16;x++)
-        {
-            if(!x%2)
-        world[0][x+speedX]=enemy20;
-     
-        }
-    }
+    	}  
+	
+		for (int j = 8; j>=1; j--) {
+           
+		         int x = 14;
 
-    //enemy10
-    for (y=3;y<5;y++)
-    {
-        for (x=0;x<=16;x++)
-        {
-            if(!x%2)
-        world[0][x+speedX]=enemy10;
-        }
-    }
+			//enemy30
+			for (x = 14+j; x >= 0+j; x -= 2)
 
-  }     
-    speedX=-speedX;
-    
-     vTaskDelay(xDelay); 
-   }
-}
+			{
+				if(world[0][x] == empty)
+                    world[0][x - 1] = empty;
+                else
+               { 
+				world[0][x] = empty;
+				world[0][x -1] = enemy30;
+               }   
+			//enemy20
+			for (int y = 1; y < 3; y++) {
+				
+                    if(world[y][x] == empty)
+                    world[y][x -1] = empty;
+                else{
+					world[y][x] = empty;
+					world[y][x -1] = enemy20;
+				}
+				}
+			
+			//enemy10
+			for (int y = 3; y < 5; y++) {
+                if(world[y][x] == empty)
+                    world[y][x - 1] = empty;
+                else{
+					world[y][x] = empty;
+					world[y][x - 1] = enemy10;
+				}
+				} 
+                printf("enemy_x_2=%i\n",x);
+			 } enemy_move=j-1;
+            printf("Enemy_Move_2 %i\n",enemy_move);
+          vTaskDelay(xDelay * 8);
+		 printf("Moving_right %i\n",j);
+		    } 
+        }
+     }
+
+
 
 void checkDraw(unsigned char status, const char *msg)
 {
@@ -305,35 +316,32 @@ void checkDraw(unsigned char status, const char *msg)
  */
 void changeState(volatile unsigned char *state, unsigned char forwards)
 {
-    switch (forwards) {
-        case NEXT_TASK_1:
-            if (*state == STATE_COUNT - 1) {
-                *state = 0;
-            }
-            else {
-                (*state)++;
-            }
-            break;
-        case NEXT_TASK_2:
-            if (*state == STATE_COUNT - 2) {
-                *state = 1;
-            }
-            else {
-                (*state)++;
-            }
-            break;
+	switch (forwards) {
+	case NEXT_TASK_1:
+		if (*state == STATE_COUNT - 1) {
+			*state = 0;
+		} else {
+			(*state)++;
+		}
+		break;
+	case NEXT_TASK_2:
+		if (*state == STATE_COUNT - 2) {
+			*state = 1;
+		} else {
+			(*state)++;
+		}
+		break;
 
-        case PREV_TASK:
-            if (*state == 0) {
-                *state = STATE_COUNT - 1;
-            }
-            else {
-                (*state)--;
-            }
-            break;
-        default:
-            break;
-    }
+	case PREV_TASK:
+		if (*state == 0) {
+			*state = STATE_COUNT - 1;
+		} else {
+			(*state)--;
+		}
+		break;
+	default:
+		break;
+	}
 }
 
 /*
@@ -341,133 +349,125 @@ void changeState(volatile unsigned char *state, unsigned char forwards)
  */
 void basicSequentialStateMachine(void *pvParameters)
 {
-    unsigned char current_state = STARTING_STATE; // Default state
-    unsigned char state_changed =
-        1; // Only re-evaluate state if it has changed
-    unsigned char input = 0;
+	unsigned char current_state = STARTING_STATE; // Default state
+	unsigned char state_changed =
+		1; // Only re-evaluate state if it has changed
+	unsigned char input = 0;
 
-    const int state_change_period = STATE_DEBOUNCE_DELAY;
+	const int state_change_period = STATE_DEBOUNCE_DELAY;
 
-    TickType_t last_change = xTaskGetTickCount();
+	TickType_t last_change = xTaskGetTickCount();
 
-    while (1) {
-        if (state_changed) {
-            goto initial_state;
-        }
+	while (1) {
+		if (state_changed) {
+			goto initial_state;
+		}
 
-        // Handle state machine input
-        if (StateQueue)
-            if (xQueueReceive(StateQueue, &input, portMAX_DELAY) ==
-                pdTRUE)
-                if (xTaskGetTickCount() - last_change >
-                    state_change_period) {
-                    changeState(&current_state, input);
-                    state_changed = 1;
-                    last_change = xTaskGetTickCount();
-                }
+		// Handle state machine input
+		if (StateQueue)
+			if (xQueueReceive(StateQueue, &input, portMAX_DELAY) ==
+			    pdTRUE)
+				if (xTaskGetTickCount() - last_change >
+				    state_change_period) {
+					changeState(&current_state, input);
+					state_changed = 1;
+					last_change = xTaskGetTickCount();
+				}
 
-initial_state:
-        // Handle current state
-        if (state_changed) {
-            if (button1)
-            { 
-            switch (current_state) {
-                case STATE_ONE:
-                    if (DemoTask2) {
-                        vTaskSuspend(DemoTask2);
-                    }
-                    if (DemoTask3) {
-                        vTaskSuspend(DemoTask3);
-                    }
-                    if (DemoTask1) {
-                        vTaskResume(DemoTask1);
-                    }
-                    
-                    break;
-                case STATE_TWO:
-                    if (DemoTask3) {
-                        vTaskSuspend(DemoTask3);
-                    }
-                    if (DemoTask1) {
-                        vTaskSuspend(DemoTask1);
+	initial_state:
+		// Handle current state
+		if (state_changed) {
+			if (button1) {
+				switch (current_state) {
+				case STATE_ONE:
+					if (DemoTask2) {
+						vTaskSuspend(DemoTask2);
+					}
+					if (DemoTask3) {
+						vTaskSuspend(DemoTask3);
+					}
+					if (DemoTask1) {
+						vTaskResume(DemoTask1);
+					}
 
-                    if (DemoTask2) {
-                        vTaskResume(DemoTask2);
-                    }
-                    break;
-                    
-                    }
-                case STATE_Three:
-                  
-                    if (DemoTask1) {
-                        vTaskSuspend(DemoTask1);
-                    } 
-                    if (DemoTask2) {
-                        vTaskSuspend(DemoTask2);
-                    }
-                    if (DemoTask3) {
-                        vTaskResume(DemoTask3);
-                    }
-                    break;
+					break;
+				case STATE_TWO:
+					if (DemoTask3) {
+						vTaskSuspend(DemoTask3);
+					}
+					if (DemoTask1) {
+						vTaskSuspend(DemoTask1);
 
-                   
-                default:
-                    break;
-            }
-            state_changed = 0;
-            
-            }
-        else
-        {            
-            switch (current_state) {
-                case STATE_ONE:
-                    if (DemoTask2) {
-                        vTaskSuspend(DemoTask2);
-                    }
-                    if (DemoTask4) {
-                        vTaskSuspend(DemoTask4);
-                    }
-                    if (DemoTask1) {
-                        vTaskResume(DemoTask1);
-                    }
-                    
-                    break;
-                case STATE_TWO:
-                    if (DemoTask4) {
-                        vTaskSuspend(DemoTask4);
-                    }
-                    if (DemoTask1) {
-                        vTaskSuspend(DemoTask1);
+						if (DemoTask2) {
+							vTaskResume(DemoTask2);
+						}
+						break;
+					}
+				case STATE_Three:
 
-                    if (DemoTask2) {
-                        vTaskResume(DemoTask2);
-                    }
-                    break;
-                    
-                    }
-                case STATE_Three:
-                    
-                    if (DemoTask1) {
-                        vTaskSuspend(DemoTask1);
-                    } 
-                    if (DemoTask2) {
-                        vTaskSuspend(DemoTask2);
-                    }
-                    if (DemoTask4) {
-                        vTaskResume(DemoTask4);
-                    }
-                    break;
+					if (DemoTask1) {
+						vTaskSuspend(DemoTask1);
+					}
+					if (DemoTask2) {
+						vTaskSuspend(DemoTask2);
+					}
+					if (DemoTask3) {
+						vTaskResume(DemoTask3);
+					}
+					break;
 
-                   
-                default:
-                    break;
-                   }
-            state_changed = 0;
-            }
-        }
-    }
+				default:
+					break;
+				}
+				state_changed = 0;
+
+			} else {
+				switch (current_state) {
+				case STATE_ONE:
+					if (DemoTask2) {
+						vTaskSuspend(DemoTask2);
+					}
+					if (DemoTask4) {
+						vTaskSuspend(DemoTask4);
+					}
+					if (DemoTask1) {
+						vTaskResume(DemoTask1);
+					}
+
+					break;
+				case STATE_TWO:
+					if (DemoTask4) {
+						vTaskSuspend(DemoTask4);
+					}
+					if (DemoTask1) {
+						vTaskSuspend(DemoTask1);
+
+						if (DemoTask2) {
+							vTaskResume(DemoTask2);
+						}
+						break;
+					}
+				case STATE_Three:
+
+					if (DemoTask1) {
+						vTaskSuspend(DemoTask1);
+					}
+					if (DemoTask2) {
+						vTaskSuspend(DemoTask2);
+					}
+					if (DemoTask4) {
+						vTaskResume(DemoTask4);
+					}
+					break;
+
+				default:
+					break;
+				}
+				state_changed = 0;
+			}
+		}
+	}
 }
-
 
 void vSwapBuffers(void *pvParameters)
 {
@@ -495,44 +495,6 @@ void xGetButtonInput(void)
 		xQueueReceive(buttonInputQueue, &buttons.buttons, 0);
 		xSemaphoreGive(buttons.lock);
 	}
-}
-
-
-void vDrawCave(unsigned char ball_color_inverted)
-{
-	static unsigned short circlePositionX, circlePositionY;
-
-	//vDrawCaveBoundingBox();
-
-	circlePositionX = CAVE_X + tumEventGetMouseX() / 2;
-	circlePositionY = CAVE_Y + tumEventGetMouseY() / 2;
-
-	if (ball_color_inverted)
-		checkDraw(tumDrawCircle(circlePositionX, circlePositionY, 20,
-					Black),
-			  __FUNCTION__);
-	else
-		checkDraw(tumDrawCircle(circlePositionX, circlePositionY, 20,
-					Silver),
-			  __FUNCTION__);
-}
-
-void vDrawHelpText(void)
-{
-	static char str[100] = { 0 };
-	static int text_width;
-	ssize_t prev_font_size = tumFontGetCurFontSize();
-
-	tumFontSetSize((ssize_t)20);
-
-	sprintf(str, "[M]enu, [R]est");
-
-	if (!tumGetTextSize((char *)str, &text_width, NULL))
-		checkDraw(tumDrawText(str, SCREEN_WIDTH - text_width - 10,
-				      DEFAULT_FONT_SIZE * 0.5, White),
-			  __FUNCTION__);
-
-	tumFontSetSize(prev_font_size);
 }
 
 #define FPS_AVERAGE_COUNT 50
@@ -589,464 +551,455 @@ void vDrawFPS(void)
 	tumFontSelectFontFromHandle(cur_font);
 	tumFontPutFontHandle(cur_font);
 }
-
-void Score_Title ( int score_1, int high_score ,int score_2)
-{   int x=90;
-    int y=10;
-    static char str_1[100] = { 0 };
-    static char str_2[100] = { 0 };
-    static char str_3[100] = { 0 };  
-      
+void vDrawHelpText(void)
+{
+	static char str[50] = { 0 };
+    static char str1[50] = { 0 };
     static int text_width;
-    ssize_t prev_font_size = tumFontGetCurFontSize();
+	ssize_t prev_font_size = tumFontGetCurFontSize();
 
-    tumFontSetSize((ssize_t)22);
+	tumFontSetSize((ssize_t)20);
 
-    sprintf(str_1, "  SCORE< 1 >    HI-SCORE   SCORE< 2 > ");
-    sprintf(str_2, "%4d                     %4d                  %4d ",  score_1  , high_score,     score_2);
-    sprintf(str_3, "CREDIT ");
+	sprintf(str, "[M]enu, [R]est");
+    sprintf(str1, "[SPACE] for Shoot!");
 
-    if (!tumGetTextSize((char *)str_1, &text_width, NULL))
-        checkDraw(tumDrawText((char* )str_1,
-        		                x,
-                                y,
-                                White),
-                  __FUNCTION__);
-    
-        if (!tumGetTextSize((char *)str_2, &text_width, NULL))
-        checkDraw(tumDrawText((char* )str_2, 
-        		                x,
-                                y+30,
-                              White),
-                  __FUNCTION__);
-                  
-    if (!tumGetTextSize((char *)str_3, &text_width, NULL))
-        checkDraw(tumDrawText((char* )str_3, 
-        	             (SCREEN_WIDTH-text_width-70),
-                              SCREEN_HEIGHT-50,
-                              White),
-                  __FUNCTION__);
-                  
-      tumFontSetSize(prev_font_size);
+	if (!tumGetTextSize((char *)str, &text_width, NULL))
+		checkDraw(tumDrawText(str, SCREEN_WIDTH - text_width - 10,
+				      DEFAULT_FONT_SIZE * 0.5, White),
+			  __FUNCTION__);
+    	if (!tumGetTextSize((char *)str1, &text_width, NULL))
+		checkDraw(tumDrawText(str1, SCREEN_WIDTH - text_width - 10,
+				      DEFAULT_FONT_SIZE * 0.5+20, White),
+			  __FUNCTION__);
+
+
+	tumFontSetSize(prev_font_size);
 }
 
+void Score_Title(int score_1, int high_score, int score_2)
+{
+	int x = 75;
+	int y = 10;
+	static char str_1[100] = { 0 };
+	static char str_2[100] = { 0 };
+	static char str_3[100] = { 0 };
 
+	static int text_width;
+	ssize_t prev_font_size = tumFontGetCurFontSize();
+
+	tumFontSetSize((ssize_t)22);
+    if(score_1>high_score)
+    high_score=score_1;
+	sprintf(str_1, "  SCORE< 1 >    HI-SCORE   SCORE< 2 > ");
+	sprintf(str_2, "%4d                     %4d                  %4d ",
+		score_1, high_score, score_2);
+	sprintf(str_3, "CREDIT ");
+
+	if (!tumGetTextSize((char *)str_1, &text_width, NULL))
+		checkDraw(tumDrawText((char *)str_1, x, y, White),
+			  __FUNCTION__);
+
+	if (!tumGetTextSize((char *)str_2, &text_width, NULL))
+		checkDraw(tumDrawText((char *)str_2, x, y + 30, White),
+			  __FUNCTION__);
+
+	if (!tumGetTextSize((char *)str_3, &text_width, NULL))
+		checkDraw(tumDrawText((char *)str_3,
+				      (SCREEN_WIDTH - text_width - 70),
+				      SCREEN_HEIGHT - 50, White),
+			  __FUNCTION__);
+
+	tumFontSetSize(prev_font_size);
+}
+
+void vDraw_Bullet(int y)
+{
+	int w = 2;
+	int h = 15;
+	int p;
+	int flag = 1;
+	if (Ready_bullet_p == 0) {
+		int x = player_PositionX;
+
+		if (flag) {
+			p = x;
+			x = 0;
+			flag = 1;
+		}
+		//if (world[sizey-3][player_X]==player_bullet)
+		checkDraw(tumDrawFilledBox(p, y, w, h, Green), __FUNCTION__);
+	}
+	flag = 1;
+}
+void Kill_task_player(void *pvParameters)
+
+{  
+	for (;;) {
+          
+		if (Ready_bullet_p == 0) {
+            int x = player_X;
+            printf("shooting\n");
+             
+			for (int y = sizey - 3; y >= 0; y--) {
+                 printf("player_matrix=%i\n", player_X);
+                 printf("player_X=%i\n", x);
+                  printf("player_y=%i\n", y);
+				if (world[y - 1][x] == empty&& y>1) {
+					Ready_bullet_p = 0;
+					world[y][x] = empty;
+					world[y - 1][x] = player_bullet;
+					vTaskDelay(xDelay * 8);
+
+				} else if (world[y - 1][x] == enemy30 ||
+					   world[y - 1][x] == enemy20 ||
+					   world[y - 1][x] == enemy10) {
+                    score_1 += world[y - 1][x] * 10;
+					world[y][x] = empty;
+					world[y - 1][x] = empty;
+                    
+					cur_enemy--;
+                    
+                    vTaskDelay(xDelay );
+				 Ready_bullet_p=1;
+                   break;
+				
+				} 
+                else if (world[y - 1][x] == enemy_bullet) {
+					world[y][x] = empty;
+					world[y - 1][x] = empty;
+                   
+                    vTaskDelay(xDelay );
+					 Ready_bullet_p=1;
+                    break;
+					
+
+				} else if (world[y - 1][x] == block) {
+					world[y][x] = empty;
+					world[y - 1][x] = empty;
+                    
+                    vTaskDelay(xDelay );
+					Ready_bullet_p=1;
+                    printf("Ready_bullet_p_b= %i\n",Ready_bullet_p);
+                    break;
+					
+				}
+                else if (world[y - 1][x] == empty && y==1)
+                {   world[y][x] = empty;
+					world[y - 1][x] = empty;
+                   
+                     vTaskDelay(xDelay );
+                     Ready_bullet_p=1;
+                    printf("Ready_bullet_p_b= %i\n",Ready_bullet_p);
+                    printf("Shoot again\n");
+                    break;
+                }
+			}
+            
+		} else
+            printf("Bullet Ready!\n");
+            
+            vTaskSuspend(Check_kill_player);
+        
+	}
+}
+
+ void vCheckStateInput_bullet(void)
+{
+	if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
+		if (buttons.buttons[KEYCODE(SPACE)]) {
+			buttons.buttons[KEYCODE(SPACE)] = 0;
+			if (Ready_bullet_p) {
+				Ready_bullet_p = 0;
+				vTaskResume(Check_kill_player);
+				world[sizey - 3][player_X] = player_bullet;
+			}
+		
+		}
+		xSemaphoreGive(buttons.lock);
+	}
+}
 void PlayText()
-{ int y=70;
-    int x=120;
-   static int text_width;
-    tumFontSetSize((ssize_t)28);
+{
+	int y = 70;
+	int x = 120;
+	static int text_width;
+	tumFontSetSize((ssize_t)28);
 
-if (!tumGetTextSize((char *)str1, &text_width, NULL))
- 
-   checkDraw(tumDrawText((char *)str1, 
-					  CAVE_X+x+5, 
-					  y+80, 
-					  White),
-                 __FUNCTION__);
+	if (!tumGetTextSize((char *)str1, &text_width, NULL))
+
+		checkDraw(tumDrawText((char *)str1, CAVE_X + x + 5, y + 80,
+				      White),
+			  __FUNCTION__);
 }
 void Move_enemy(void *pvParameters)
-{   for(;;)
-    {
-    for(int i=0;i<8;i++)
-    {
-        speed+=tumDrawGetLoadedImageWidth(logo_image_10)*0.6;;
-    
-        vTaskDelay(xDelay*8);
-    }
-       for(int i=0;i<8;i++)
-    {
-        speed-=tumDrawGetLoadedImageWidth(logo_image_10)*0.6;;
- 
-        vTaskDelay(xDelay*8);
-    }
-  }
+{
+	for (;;) {
+		for (int i = 0; i < 8; i++) {
+			speed +=25;
+				
+			
+           
+			vTaskDelay(xDelay * 8);
+		}
+		for (int i = 0; i < 8; i++) {
+			speed -=25;
+			
+
+			vTaskDelay(xDelay * 8);
+		}
+	}
 }
 
-int Status=0;
- void vCheckStateInput_R()
-{       
-    if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
-        if (buttons.buttons[KEYCODE(R)]) {
-           buttons.buttons[KEYCODE(R)] = 0;
-            if (Status) {
-               vTaskSuspend(enemy_Task);
-            vTaskSuspend(Player_Task);
-                Status=0;
-            }
-            else
-            { vTaskResume(Player_Task);
-                vTaskResume(enemy_Task);
-                
-                Status=1;
-            }
-        }                xSemaphoreGive(buttons.lock);
-              
-    }
+int Status = 0;
+void vCheckStateInput_R()
+{
+	if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
+		if (buttons.buttons[KEYCODE(R)]) {
+			buttons.buttons[KEYCODE(R)] = 0;
+			if (Status) {
+				vTaskSuspend(enemy_Task);
+				vTaskSuspend(Player_Task);
+				Status = 0;
+			} else {
+				vTaskResume(Player_Task);
+				vTaskResume(enemy_Task);
+
+				Status = 1;
+			}
+		}
+		xSemaphoreGive(buttons.lock);
+	}
 }
-void DrawMoveText2 ()
-{   int y=70;
-    int x=120;
-   static int text_width;
-    tumFontSetSize((ssize_t)20);
+void DrawMoveText2()
+{
+	int y = 70;
+	int x = 120;
+	static int text_width;
+	tumFontSetSize((ssize_t)20);
 
- 
+	if (!tumGetTextSize((char *)str2, &text_width, NULL))
+		checkDraw(tumDrawText((char *)str2, CAVE_X + x - 25, y + 130,
+				      White),
+			  __FUNCTION__);
+	if (!tumGetTextSize((char *)str3, &text_width, NULL))
+		checkDraw(tumDrawText((char *)str3, CAVE_X + x - 70, y + 160,
+				      White),
+			  __FUNCTION__);
+	if (!tumGetTextSize((char *)str9, &text_width, NULL))
 
- 
- 
- if (!tumGetTextSize((char *)str2, &text_width, NULL))
-    checkDraw(tumDrawText((char *)str2, 
-					  CAVE_X+x-25, 
-					  y+130, 
-					  White),
-                 __FUNCTION__);
- if (!tumGetTextSize((char *)str3, &text_width, NULL))
-        checkDraw(tumDrawText((char *)str3, 
-					  CAVE_X+x-70, 
-					  y+160, 
-					  White),
-                 __FUNCTION__);
-if (!tumGetTextSize((char *)str9, &text_width, NULL))
-    
-    checkDraw(tumDrawText((char *)str9, 
-					  CAVE_X+x, 
-					  y+205, 
-					  White),
-                 __FUNCTION__);
-    if (!tumGetTextSize((char *)str10, &text_width, NULL))             
-     checkDraw(tumDrawText((char *)str10, 
-					  CAVE_X+x, 
-					  y+240, 
-					  White),
-                    __FUNCTION__);
- if (!tumGetTextSize((char *)str11, &text_width, NULL))
-    checkDraw(tumDrawText((char *)str11, 
-					  CAVE_X+x, 
-					  y+270, 
-					  White),
-                    __FUNCTION__);
-
-
+		checkDraw(tumDrawText((char *)str9, CAVE_X + x, y + 205, White),
+			  __FUNCTION__);
+	if (!tumGetTextSize((char *)str10, &text_width, NULL))
+		checkDraw(tumDrawText((char *)str10, CAVE_X + x, y + 240,
+				      White),
+			  __FUNCTION__);
+	if (!tumGetTextSize((char *)str11, &text_width, NULL))
+		checkDraw(tumDrawText((char *)str11, CAVE_X + x, y + 270,
+				      White),
+			  __FUNCTION__);
 }
 
 void Move_text_all(void *pvParameters)
 {
- static char str[50] = {0};
-    sprintf(str, "[P]LAY");
-    //animation loop
-    for (int i=0; i<=strlen(str); i++)
-        {
-           str1[i]=str[i];
-             vTaskDelay(xDelay);
-         
-        }
-    
-     sprintf(str, "SPACE INVADERS");
-        //animation loop
-    for (int i=0; i<=strlen(str); i++)
-        {
-           str2[i]=str[i];
-             vTaskDelay(xDelay);
-         
-        }
+	static char str[50] = { 0 };
+	sprintf(str, "[P]LAY");
+	//animation loop
+	for (int i = 0; i <= strlen(str); i++) {
+		str1[i] = str[i];
+		vTaskDelay(xDelay);
+	}
 
-    sprintf(str, "* SCORE ADVANCE TABE *");
-       
-    //animation loop
-    for (int i=0; i<=strlen(str); i++)
-        {
-           str3[i]=str[i];
-             vTaskDelay(xDelay);
-         
-        }
-     sprintf(str, "= 30 POINTS");
-       
-    //animation loop
-    for (int i=0; i<=strlen(str); i++)
-        {
-           str9[i]=str[i];
-             vTaskDelay(xDelay);
-        }
-     sprintf(str, "= 20 POINTS");
-  
-    //animation loop
-    for (int i=0; i<=strlen(str); i++)
-        {
-           str10[i]=str[i];
-             vTaskDelay(xDelay);
-         
-        }
-         sprintf(str, "= 10 POINTS");
-    
-    //animation loop
-    for (int i=0; i<=strlen(str); i++)
-        {
-           str11[i]=str[i];
-             vTaskDelay(xDelay);
-         
-        }vTaskDelete(Text_task_all);
+	sprintf(str, "SPACE INVADERS");
+	//animation loop
+	for (int i = 0; i <= strlen(str); i++) {
+		str2[i] = str[i];
+		vTaskDelay(xDelay);
+	}
+
+	sprintf(str, "* SCORE ADVANCE TABE *");
+
+	//animation loop
+	for (int i = 0; i <= strlen(str); i++) {
+		str3[i] = str[i];
+		vTaskDelay(xDelay);
+	}
+	sprintf(str, "= 30 POINTS");
+
+	//animation loop
+	for (int i = 0; i <= strlen(str); i++) {
+		str9[i] = str[i];
+		vTaskDelay(xDelay);
+	}
+	sprintf(str, "= 20 POINTS");
+
+	//animation loop
+	for (int i = 0; i <= strlen(str); i++) {
+		str10[i] = str[i];
+		vTaskDelay(xDelay);
+	}
+	sprintf(str, "= 10 POINTS");
+
+	//animation loop
+	for (int i = 0; i <= strlen(str); i++) {
+		str11[i] = str[i];
+		vTaskDelay(xDelay);
+	}
+	vTaskDelete(Text_task_all);
 }
 void vDrawLogo(void)
 
 {
-    int x=230;
-    int y=SCREEN_HEIGHT - 210;
-	   tumDrawSetLoadedImageScale 	( 	logo_image_30,
-		                         0.04
-	                                ) ;	
+	int x = 230;
+	int y = SCREEN_HEIGHT /2-20;
+	tumDrawSetLoadedImageScale(logo_image_30, 0.04);
 
- 	    tumDrawSetLoadedImageScale 	( 	logo_image_20,
-		                         0.15
-	                                ) ;
+	tumDrawSetLoadedImageScale(logo_image_20, 0.15);
 
-        tumDrawSetLoadedImageScale 	( 	logo_image_10,
-		                         0.05
-	                                ) ;		                                   
-		checkDraw(
-			tumDrawLoadedImage(logo_image_30,
-                                 x,
-					             y       ),
-			__FUNCTION__);
+	tumDrawSetLoadedImageScale(logo_image_10, 0.05);
+	checkDraw(tumDrawLoadedImage(logo_image_30, x, y), __FUNCTION__);
 
-		checkDraw(
-			tumDrawLoadedImage(logo_image_20, 
-                                x+5,
-					            y+40),
-			__FUNCTION__);
-	
-	
+	checkDraw(tumDrawLoadedImage(logo_image_20, x + 5, y + 40),
+		  __FUNCTION__);
 
-		checkDraw(tumDrawLoadedImage(logo_image_10, 
-                                    x+5,
-					                y+65 ),
+	checkDraw(tumDrawLoadedImage(logo_image_10, x + 5, y + 65),
+		  __FUNCTION__);
+}
+void vDrawenemy_30(int x, int y, int v, int x1, int y1)
+{
+	int Distand = 55;
+	x += v;
+
+	tumDrawSetLoadedImageScale(logo_image_30, 0.03);
+	if (world[y1][x1] == enemy30)
+		checkDraw(tumDrawLoadedImage(logo_image_30, x, y),
 			  __FUNCTION__);
-	
-	
+	if (world[y1][x1 + 2] == enemy30)
+		checkDraw(tumDrawLoadedImage(logo_image_30, x + Distand, y),
+			  __FUNCTION__);
+	if (world[y1][x1 + 4] == enemy30)
+		checkDraw(tumDrawLoadedImage(logo_image_30, x + Distand * 2, y),
+			  __FUNCTION__);
+	if (world[y1][x1 + 6] == enemy30)
+		checkDraw(tumDrawLoadedImage(logo_image_30, x + Distand * 3, y),
+			  __FUNCTION__);
+	if (world[y1][x1 + 8] == enemy30)
+		checkDraw(tumDrawLoadedImage(logo_image_30, x + Distand * 4, y),
+			  __FUNCTION__);
+
+	if (world[y1][x1 + 10] == enemy30)
+		checkDraw(tumDrawLoadedImage(logo_image_30, x + Distand * 5, y),
+			  __FUNCTION__);
+	if (world[y1][x1 + 12] == enemy30)
+		checkDraw(tumDrawLoadedImage(logo_image_30, x + Distand * 6, y),
+			  __FUNCTION__);
+	if (world[y1][x1 + 14] == enemy30)
+		checkDraw(tumDrawLoadedImage(logo_image_30, x + Distand * 7, y),
+			  __FUNCTION__);
 }
-void vDrawenemy_30(int x,int y,int v,int x1,int y1)
-{   int Distand= 50;
-    x+=v;
 
-    
-  	   tumDrawSetLoadedImageScale 	( 	logo_image_30,
-		                         0.03
-	                                ) ;	
-        if (world[y1][x1]==enemy30)
-        checkDraw(
-			tumDrawLoadedImage(logo_image_30,
-                                 x,
-					             y       ),
-                          __FUNCTION__); 
-         if (world[y1][x1+2]==enemy30)
-         checkDraw(
-			tumDrawLoadedImage(logo_image_30,
-                                 x+Distand,
-					             y       ),
-                          __FUNCTION__);
-        if (world[y1][x1+4]==enemy30)
-         checkDraw(
-			tumDrawLoadedImage(logo_image_30,
-                                 x+Distand*2,
-					             y       ),
-                          __FUNCTION__);  
-        if (world[y1][x1+6]==enemy30)
-                 checkDraw(
-			tumDrawLoadedImage(logo_image_30,
-                                 x+Distand*3,
-					             y       ),
-                          __FUNCTION__);  
-        if (world[y1][x1+8]==enemy30)    
-                checkDraw(
-			tumDrawLoadedImage(logo_image_30,
-                                 x+Distand*4,
-					             y       ),
-                          __FUNCTION__);  
+void vDrawenemy_20(int x, int y, int v, int x1, int y1)
+{
+	y += 35;
+	x += 5 + v;
 
-        if (world[y1][x1+10]==enemy30)		
-                checkDraw(
-			tumDrawLoadedImage(logo_image_30,
-                                 x+Distand*5,
-					             y       ),
-                          __FUNCTION__); 
-         if (world[y1][x1+12]==enemy30)	
-                checkDraw(
-			tumDrawLoadedImage(logo_image_30,
-                                 x+Distand*6,
-					             y       ),
-                          __FUNCTION__);  
-         if (world[y1][x1+14]==enemy30)	
-                checkDraw(
-			tumDrawLoadedImage(logo_image_30,
-                                 x+Distand*7,
-					             y       ),
-                          __FUNCTION__);  
-        		
-        		 
-        		
-} 
+	int Distand = 55;
 
-void vDrawenemy_20(int x, int y,int v,int x1, int y1)
-{       y+=35;
-        x+=5+v;
+	tumDrawSetLoadedImageScale(logo_image_20, 0.115);
+	if (world[y1][x1] == enemy20)
+		checkDraw(tumDrawLoadedImage(logo_image_20, x, y),
+			  __FUNCTION__);
 
-  	int Distand= 50;
-  	 
-         tumDrawSetLoadedImageScale 	( 	logo_image_20,
-		                         0.115
-	                               ) ;	
-    if (world[y1][x1]==enemy20) 
-        checkDraw(
-			tumDrawLoadedImage(logo_image_20,
-                                 x,
-					             y       ),
-                          __FUNCTION__);  
-                          
-     if (world[y1][x1+2]==enemy20)
-         checkDraw(
-			tumDrawLoadedImage(logo_image_20,
-                                 x+Distand,
-					             y       ),
-                          __FUNCTION__);
-     if (world[y1][x1+4]==enemy20)
-         checkDraw(
-			tumDrawLoadedImage(logo_image_20,
-                                 x+Distand*2,
-					             y       ),
-                          __FUNCTION__);  
-     if (world[y1][x1+6]==enemy20)
-                 checkDraw(
-			tumDrawLoadedImage(logo_image_20,
-                                 x+Distand*3,
-					             y       ),
-                          __FUNCTION__);   
-        if (world[y1][x1+8]==enemy20) 
-                checkDraw(
-			tumDrawLoadedImage(logo_image_20,
-                                 x+Distand*4,
-					             y       ),
-                          __FUNCTION__);  
-     if (world[y1][x1+10]==enemy20)
-        		
-                checkDraw(
-			tumDrawLoadedImage(logo_image_20,
-                                 x+Distand*5,
-					             y       ),
-                          __FUNCTION__); 
-     if (world[y1][x1+12]==enemy20)
-                checkDraw(
-			tumDrawLoadedImage(logo_image_20,
-                                 x+Distand*6,
-					             y       ),
-                          __FUNCTION__); 
-      if (world[y1][x1+14]==enemy20)
-                checkDraw(
-			tumDrawLoadedImage(logo_image_20,
-                                 x+Distand*7,
-					             y       ),
-                          __FUNCTION__);  
-        		
+	if (world[y1][x1 + 2] == enemy20)
+		checkDraw(tumDrawLoadedImage(logo_image_20, x + Distand, y),
+			  __FUNCTION__);
+	if (world[y1][x1 + 4] == enemy20)
+		checkDraw(tumDrawLoadedImage(logo_image_20, x + Distand * 2, y),
+			  __FUNCTION__);
+	if (world[y1][x1 + 6] == enemy20)
+		checkDraw(tumDrawLoadedImage(logo_image_20, x + Distand * 3, y),
+			  __FUNCTION__);
+	if (world[y1][x1 + 8] == enemy20)
+		checkDraw(tumDrawLoadedImage(logo_image_20, x + Distand * 4, y),
+			  __FUNCTION__);
+	if (world[y1][x1 + 10] == enemy20)
+
+		checkDraw(tumDrawLoadedImage(logo_image_20, x + Distand * 5, y),
+			  __FUNCTION__);
+	if (world[y1][x1 + 12] == enemy20)
+		checkDraw(tumDrawLoadedImage(logo_image_20, x + Distand * 6, y),
+			  __FUNCTION__);
+	if (world[y1][x1 + 14] == enemy20)
+		checkDraw(tumDrawLoadedImage(logo_image_20, x + Distand * 7, y),
+			  __FUNCTION__);
 }
-void vDrawenemy_10(int x,int y,int v,int x1,int y1)
-{   int Distand= 50;
-    y+=65;
-    x+=v;
-  	   tumDrawSetLoadedImageScale 	( 	logo_image_10,
-		                         0.04
-	                                ) ;	
-    if (world[y1][x1]==enemy10)
-        checkDraw(
-			tumDrawLoadedImage(logo_image_10,
-                                 x,
-					             y       ),
-                          __FUNCTION__);  
-    if (world[y1][x1+2]==enemy10)
-         checkDraw(
-			tumDrawLoadedImage(logo_image_10,
-                                 x+Distand,
-					             y       ),
-                          __FUNCTION__);
-        if (world[y1][x1+4]==enemy10)
-         checkDraw(
-			tumDrawLoadedImage(logo_image_10,
-                                 x+Distand*2,
-					             y       ),
-                          __FUNCTION__);  
-        if (world[y1][x1+6]==enemy10)
-                 checkDraw(
-			tumDrawLoadedImage(logo_image_10,
-                                 x+Distand*3,
-					             y       ),
-                          __FUNCTION__); 
-            if (world[y1][x1+8]==enemy10)     
-                checkDraw(
-			tumDrawLoadedImage(logo_image_10,
-                                 x+Distand*4,
-					             y       ),
-                          __FUNCTION__);  
-            if (world[y1][x1+10]==enemy10)		
-                checkDraw(
-			tumDrawLoadedImage(logo_image_10,
-                                 x+Distand*5,
-					             y       ),
-                          __FUNCTION__); 
-            if (world[y1][x1+12]==enemy10)	
-                checkDraw(
-			tumDrawLoadedImage(logo_image_10,
-                                 x+Distand*6,
-					             y       ),
-                          __FUNCTION__); 
-        if (world[y1][x1+14]==enemy10)	 
-                checkDraw(
-			tumDrawLoadedImage(logo_image_10,
-                                 x+Distand*7,
-					             y       ),
-                          __FUNCTION__);  
-        		
-        		 
-        		
-} 
-
-void vDraw_Bullet(int x, int y)
-{         int w=2;
-            int h=15;
-        
-    checkDraw(tumDrawFilledBox(x,y,w,h,Green),
-    __FUNCTION__);
-        
-
-
+void vDrawenemy_10(int x, int y, int v, int x1, int y1)
+{
+	int Distand = 55;
+	y += 65;
+	x += v;
+	tumDrawSetLoadedImageScale(logo_image_10, 0.04);
+	if (world[y1][x1] == enemy10)
+		checkDraw(tumDrawLoadedImage(logo_image_10, x, y),
+			  __FUNCTION__);
+	if (world[y1][x1 + 2] == enemy10)
+		checkDraw(tumDrawLoadedImage(logo_image_10, x + Distand, y),
+			  __FUNCTION__);
+	if (world[y1][x1 + 4] == enemy10)
+		checkDraw(tumDrawLoadedImage(logo_image_10, x + Distand * 2, y),
+			  __FUNCTION__);
+	if (world[y1][x1 + 6] == enemy10)
+		checkDraw(tumDrawLoadedImage(logo_image_10, x + Distand * 3, y),
+			  __FUNCTION__);
+	if (world[y1][x1 + 8] == enemy10)
+		checkDraw(tumDrawLoadedImage(logo_image_10, x + Distand * 4, y),
+			  __FUNCTION__);
+	if (world[y1][x1 + 10] == enemy10)
+		checkDraw(tumDrawLoadedImage(logo_image_10, x + Distand * 5, y),
+			  __FUNCTION__);
+	if (world[y1][x1 + 12] == enemy10)
+		checkDraw(tumDrawLoadedImage(logo_image_10, x + Distand * 6, y),
+			  __FUNCTION__);
+	if (world[y1][x1 + 14] == enemy10)
+		checkDraw(tumDrawLoadedImage(logo_image_10, x + Distand * 7, y),
+			  __FUNCTION__);
 }
-int Position=0;
-   
+
+int Position = 0;
+
 void Move_Player(void *pvParameters)
-{ 
-     for(;;)
-     {
-       //Button count
-    if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
-        if (buttons.buttons[KEYCODE(RIGHT)]) {
-            buttons.buttons[KEYCODE(RIGHT)] = 0;
-            if(Position<220)
-            Position+=20;
-           
-            }
-        else if (buttons.buttons[KEYCODE(LEFT)]) {
-            buttons.buttons[KEYCODE(LEFT)] = 0;
-            if(Position>-280)
-            Position-=20;
-            ;}
+{
+	for (;;) {
+		//Button count
+		if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
+			if (buttons.buttons[KEYCODE(RIGHT)]) {
+				buttons.buttons[KEYCODE(RIGHT)] = 0;
+				if (Position < 220)
+					Position += 23;
+				player_PositionX += 23;
+				player_X++;
+                printf("player_matrix=%i\n", player_X);
 
-       
-        xSemaphoreGive(buttons.lock);
-    }
- }
+			} else if (buttons.buttons[KEYCODE(LEFT)]) {
+				buttons.buttons[KEYCODE(LEFT)] = 0;
+				if (Position > -280)
+					Position -= 23;
+				player_PositionX -= 23;
+				player_X--;
+				printf("player_matrix=%i\n", player_X);
+			}
+
+			xSemaphoreGive(buttons.lock);
+		}
+	}
 }
 
-
-void vDrawBlock_1( int q,int p,int w, int h)
-{  q= q+4*w;
-     // Draw the BLOCKs
-           /*for (int j=sizey-5;j>=sizey-3;j--)
+void vDrawBlock_1(int q, int p, int w, int h)
+{
+	q = q + 4 * w-5;
+    int x1 = 4;
+	int x2 = 5;
+	// Draw the BLOCKs
+	/*for (int j=sizey-5;j>=sizey-3;j--)
             {
 
                 for(int k=0;k<4;k++)
@@ -1060,313 +1013,140 @@ void vDrawBlock_1( int q,int p,int w, int h)
                     }
                 }
             }*/  //funtioniert nicht
-          //1.Block
-            if (world[sizey-5][3]==block)
-               checkDraw(tumDrawFilledBox(
-                                q, p,
-                                w, h,
-                                Lime),
-                            __FUNCTION__);
-            if (world[sizey-5][4]==block)
-               checkDraw(tumDrawFilledBox(
-                                q+w, p,
-                                w, h,
-                                Lime),
-                            __FUNCTION__);
-            if (world[sizey-4][3]==block)
-               checkDraw(tumDrawFilledBox(
-                                q, p+h,
-                                w, h,
-                                Lime),
-                            __FUNCTION__);
-            if (world[sizey-4][4]==block)
-               checkDraw(tumDrawFilledBox(
-                                q+w, p+h,
-                                w, h,
-                                Lime),
-                            __FUNCTION__);
-    
+	//1.Block
+	if (world[sizey - 5][x1] == block)
+		checkDraw(tumDrawFilledBox(q, p, w, h, Lime), __FUNCTION__);
+	if (world[sizey - 5][x2] == block)
+		checkDraw(tumDrawFilledBox(q + w, p, w, h, Lime), __FUNCTION__);
+	if (world[sizey - 4][x1] == block)
+		checkDraw(tumDrawFilledBox(q, p + h, w, h, Lime), __FUNCTION__);
+	if (world[sizey - 4][x2] == block)
+		checkDraw(tumDrawFilledBox(q + w, p + h, w, h, Lime),
+			  __FUNCTION__);
 }
 
-void vDrawBlock_2( int q,int p,int w, int h)
-{   q=q+9*w;
-    int x1=8;
-    int x2=9;
-          //2.Block
-            if (world[sizey-5][x1]==block)
-               checkDraw(tumDrawFilledBox(
-                                q, p,
-                                w, h,
-                                Lime),
-                            __FUNCTION__);
-            if (world[sizey-5][x2]==block)
-               checkDraw(tumDrawFilledBox(
-                                q+w, p,
-                                w, h,
-                                Lime),
-                            __FUNCTION__);
-            if (world[sizey-4][x1]==block)
-               checkDraw(tumDrawFilledBox(
-                                q, p+h,
-                                w, h,
-                                Lime),
-                            __FUNCTION__);
-            if (world[sizey-4][x2]==block)
-               checkDraw(tumDrawFilledBox(
-                                q+w, p+h,
-                                w, h,
-                                Lime),
-                            __FUNCTION__);
-
-               
-}
-
-void vDrawBlock_3( int q,int p,int w, int h)
-{   q=q+14*w;
-    int x1=13;
-    int x2=14;
-          //2.Block
-            if (world[sizey-5][x1]==block)
-               checkDraw(tumDrawFilledBox(
-                                q, p,
-                                w, h,
-                                Lime),
-                            __FUNCTION__);
-            if (world[sizey-5][x2]==block)
-               checkDraw(tumDrawFilledBox(
-                                q+w, p,
-                                w, h,
-                                Lime),
-                            __FUNCTION__);
-            if (world[sizey-4][x1]==block)
-               checkDraw(tumDrawFilledBox(
-                                q, p+h,
-                                w, h,
-                                Lime),
-                            __FUNCTION__);
-            if (world[sizey-4][x2]==block)
-               checkDraw(tumDrawFilledBox(
-                                q+w, p+h,
-                                w, h,
-                                Lime),
-                            __FUNCTION__);
-
-               
-}
-void vDrawBlock_4( int q,int p,int w, int h)
-{   q=q+19*w;
-    int x1=18;
-    int x2=19;
-          //2.Block
-            if (world[sizey-5][x1]==block)
-               checkDraw(tumDrawFilledBox(
-                                q, p,
-                                w, h,
-                                Lime),
-                            __FUNCTION__);
-            if (world[sizey-5][x2]==block)
-               checkDraw(tumDrawFilledBox(
-                                q+w, p,
-                                w, h,
-                                Lime),
-                            __FUNCTION__);
-            if (world[sizey-4][x1]==block)
-               checkDraw(tumDrawFilledBox(
-                                q, p+h,
-                                w, h,
-                                Lime),
-                            __FUNCTION__);
-            if (world[sizey-4][x2]==block)
-               checkDraw(tumDrawFilledBox(
-                                q+w, p+h,
-                                w, h,
-                                Lime),
-                            __FUNCTION__);
-
-               
-}
-void vDrawBlock_all(int q,int p,int w, int h)
+void vDrawBlock_2(int q, int p, int w, int h)
 {
-    vDrawBlock_1( q, p, w, h);
-    vDrawBlock_2( q, p, w, h);
-    vDrawBlock_3( q, p, w, h);
-    vDrawBlock_4( q, p, w, h);
+	q = q + 9 * w-5;
+	int x1 = 9;
+	int x2 = 10;
+	//2.Block
+	if (world[sizey - 5][x1] == block)
+		checkDraw(tumDrawFilledBox(q, p, w, h, Lime), __FUNCTION__);
+	if (world[sizey - 5][x2] == block)
+		checkDraw(tumDrawFilledBox(q + w, p, w, h, Lime), __FUNCTION__);
+	if (world[sizey - 4][x1] == block)
+		checkDraw(tumDrawFilledBox(q, p + h, w, h, Lime), __FUNCTION__);
+	if (world[sizey - 4][x2] == block)
+		checkDraw(tumDrawFilledBox(q + w, p + h, w, h, Lime),
+			  __FUNCTION__);
 }
 
-void xCreatBlock_2( )
-{       int x=80+7*BLOCK_THICKNESS;
-        int y=320;
-
- wall_t *left_block_1 =
-        createWall(x, y, BLOCK_THICKNESS,
-                   BLOCK_THICKNESS, 0.2,Lime , NULL, NULL);
-    // Right wall
-    wall_t *right_block_1 =
-        createWall(x+2*BLOCK_THICKNESS, y,BLOCK_THICKNESS,
-                   BLOCK_THICKNESS, 0.2, Lime, NULL, NULL);
-    // Top wall
-    wall_t *top_block_1 =
-        createWall(x+BLOCK_THICKNESS, y ,BLOCK_THICKNESS
-                   , BLOCK_THICKNESS,
-                   0.2, Lime, NULL, NULL);
-    // Bottom wall
-    wall_t *bottom_block_left_1 =
-        createWall(x, y-BLOCK_THICKNESS,
-                  BLOCK_THICKNESS,BLOCK_THICKNESS,
-                   0.2, Lime, NULL, NULL);
-
-    wall_t *bottom_block_right_1 =
-        createWall(x+2*BLOCK_THICKNESS ,y-BLOCK_THICKNESS,
-                   BLOCK_THICKNESS, BLOCK_THICKNESS,
-                   0.2, Lime, NULL, NULL);
-
-
-
-        for (;;)
-        {
-     // Draw the BLOCKs
-                checkDraw(tumDrawFilledBox(
-                              left_block_1->x1, left_block_1->y1,
-                              left_block_1->w, left_block_1->h,
-                              left_block_1->colour),
-                          __FUNCTION__);
-                checkDraw(tumDrawFilledBox(right_block_1->x1,
-                                           right_block_1->y1,
-                                           right_block_1->w,
-                                           right_block_1->h,
-                                           right_block_1->colour),
-                          __FUNCTION__);
-                checkDraw(tumDrawFilledBox(
-                              top_block_1->x1, top_block_1->y1,
-                              top_block_1->w, top_block_1->h,
-                              top_block_1->colour),
-                          __FUNCTION__);
-                checkDraw(tumDrawFilledBox(bottom_block_left_1->x1,
-                                           bottom_block_left_1->y1,
-                                           bottom_block_left_1->w,
-                                           bottom_block_left_1->h,
-                                           bottom_block_left_1->colour),
-                          __FUNCTION__);
-
-                checkDraw(tumDrawFilledBox(bottom_block_right_1->x1,
-                                           bottom_block_right_1->y1,
-                                           bottom_block_right_1->w,
-                                           bottom_block_right_1->h,
-                                           bottom_block_right_1->colour),
-                          __FUNCTION__);
-            }
+void vDrawBlock_3(int q, int p, int w, int h)
+{
+	q = q + 14 * w-15;
+	int x1 = 14;
+	int x2 = 15;
+	//3.Block
+	if (world[sizey - 5][x1] == block)
+		checkDraw(tumDrawFilledBox(q, p, w, h, Lime), __FUNCTION__);
+	if (world[sizey - 5][x2] == block)
+		checkDraw(tumDrawFilledBox(q + w, p, w, h, Lime), __FUNCTION__);
+	if (world[sizey - 4][x1] == block)
+		checkDraw(tumDrawFilledBox(q, p + h, w, h, Lime), __FUNCTION__);
+	if (world[sizey - 4][x2] == block)
+		checkDraw(tumDrawFilledBox(q + w, p + h, w, h, Lime),
+			  __FUNCTION__);
+}
+void vDrawBlock_4(int q, int p, int w, int h)
+{
+	q = q + 18* w+10;
+	int x1 = 19;
+	int x2 = 20;
+	//4.Block
+	if (world[sizey - 5][x1] == block)
+		checkDraw(tumDrawFilledBox(q, p, w, h, Lime), __FUNCTION__);
+	if (world[sizey - 5][x2] == block)
+		checkDraw(tumDrawFilledBox(q + w, p, w, h, Lime), __FUNCTION__);
+	if (world[sizey - 4][x1] == block)
+		checkDraw(tumDrawFilledBox(q, p + h, w, h, Lime), __FUNCTION__);
+	if (world[sizey - 4][x2] == block)
+		checkDraw(tumDrawFilledBox(q + w, p + h, w, h, Lime),
+			  __FUNCTION__);
+}
+void vDrawBlock_all(int q, int p, int w, int h)
+{
+	vDrawBlock_1(q, p, w, h);
+	vDrawBlock_2(q, p, w, h);
+	vDrawBlock_3(q, p, w, h);
+	vDrawBlock_4(q, p, w, h);
 }
 
-void vDraw_Player(int p )
-{ int x=player_offsetX +p;
-    int y=world_offsetY+14.5*tumDrawGetLoadedImageHeight(logo_image_10)*0.6 ;
+void vDraw_Player(int p)
+{
+	int x = player_offsetX + p;
+	int y = SCREEN_HEIGHT-130;
 
-  	   tumDrawSetLoadedImageScale 	( logo_image_player,
-		                         0.22
-	                                ) ;	
-        checkDraw(
-			tumDrawLoadedImage(logo_image_player,
-                                 x,
-					             y       ),
-                          __FUNCTION__);  
-
+	tumDrawSetLoadedImageScale(logo_image_player, 0.22);
+	checkDraw(tumDrawLoadedImage(logo_image_player, x, y), __FUNCTION__);
 }
 void vDraw_PlayerLife()
-{   int x=180;
-     int y=world_offsetY+18*tumDrawGetLoadedImageHeight(logo_image_10)*0.6 ;
-    static char str[10] = { 0 };
-    sprintf(str, "%d" ,life);
-    tumFontSetSize((ssize_t)20);
-  tumDrawSetLoadedImageScale 	( logo_image_player_1,
-		                         0.12
-	                             ) ;	
-        if(life>1)  
-        checkDraw(
-			tumDrawLoadedImage(logo_image_player_1,
-                                 x,
-					             y       ),
-                          __FUNCTION__);  
-        if(life>2)
-          checkDraw(
-			tumDrawLoadedImage(logo_image_player_1,
-                                 x+45,
-					             y       ),
-                          __FUNCTION__);  
-
-
-
-        checkDraw(tumDrawText(str, x-20 ,
-				                y, White),
+{
+	int x = 180;
+	int y = SCREEN_HEIGHT-80;
+	static char str[10] = { 0 };
+	sprintf(str, "%d", life);
+	tumFontSetSize((ssize_t)20);
+	tumDrawSetLoadedImageScale(logo_image_player_1, 0.12);
+	if (life > 1)
+		checkDraw(tumDrawLoadedImage(logo_image_player_1, x, y),
+			  __FUNCTION__);
+	if (life > 2)
+		checkDraw(tumDrawLoadedImage(logo_image_player_1, x + 45, y),
 			  __FUNCTION__);
 
-
+	checkDraw(tumDrawText(str, x - 20, y, White), __FUNCTION__);
 }
 
 void Gameover()
 {
- static char str[10] = { 0 };
-    sprintf(str," Game Over!!! ");
-    tumFontSetSize((ssize_t)25);
+	static char str[10] = { 0 };
+	sprintf(str, " Game Over!!! ");
+	tumFontSetSize((ssize_t)25);
 
-
-
-        checkDraw(tumDrawText(str, CAVE_SIZE_X ,
-				                CAVE_Y, Red
-                                ),
-			  __FUNCTION__);
-            vTaskDelay(3000);
-        xQueueSend(StateQueue, &next_state_signal_1, 0);
+	checkDraw(tumDrawText(str, CAVE_SIZE_X, CAVE_Y, Red), __FUNCTION__);
+	vTaskDelay(3000);
+	xQueueSend(StateQueue, &next_state_signal_1, 0);
 }
 void vDraw_Mothership()
-{ int x=CAVE_SIZE_X;
-    int y=SCREEN_HEIGHT-350;
+{
+	int x = CAVE_SIZE_X;
+	int y = SCREEN_HEIGHT - 350;
 
-  	   tumDrawSetLoadedImageScale 	( logo_image_mothership,
-		                         0.2
-	                                ) ;	
-        checkDraw(
-			tumDrawLoadedImage(logo_image_mothership,
-                                 x,
-					             y       ),
-                          __FUNCTION__);  
-
+	tumDrawSetLoadedImageScale(logo_image_mothership, 0.2);
+	checkDraw(tumDrawLoadedImage(logo_image_mothership, x, y),
+		  __FUNCTION__);
 }
-
-
-
-
 
 void DrawText(int x, int y)
 {
+	static int text_width;
+	tumFontSetSize((ssize_t)23);
 
-    static int text_width;
-    tumFontSetSize((ssize_t)23);
-    		
-     if (!tumGetTextSize((char *)str5, &text_width, NULL))
-                checkDraw(tumDrawText((char *)str5, 
-					            CAVE_X+x+32, 
-					            y+170, 
-					            White),
-                 __FUNCTION__);
-     if (!tumGetTextSize((char *)str6, &text_width, NULL))
-      
-                checkDraw(tumDrawText((char *)str6, 
-					            CAVE_X+x, 
-					            y+230, 
-					            White),
-                 __FUNCTION__);   
-     if (!tumGetTextSize((char *)str7, &text_width, NULL))
-                checkDraw(tumDrawText((char *)str7, 
-					            CAVE_X+x, 
-					            y+270, 
-					            White),
-                 __FUNCTION__);    
-      if (!tumGetTextSize((char *)str8, &text_width, NULL))            
-                checkDraw(tumDrawText((char *)str8, 
-					            CAVE_X+x, 
-					            y+310, 
-					            White),
-                 __FUNCTION__);   
+	if (!tumGetTextSize((char *)str5, &text_width, NULL))
+		checkDraw(tumDrawText((char *)str5, CAVE_X + x + 32, y + 170,
+				      White),
+			  __FUNCTION__);
+	if (!tumGetTextSize((char *)str6, &text_width, NULL))
+
+		checkDraw(tumDrawText((char *)str6, CAVE_X + x, y + 230, White),
+			  __FUNCTION__);
+	if (!tumGetTextSize((char *)str7, &text_width, NULL))
+		checkDraw(tumDrawText((char *)str7, CAVE_X + x, y + 270, White),
+			  __FUNCTION__);
+	if (!tumGetTextSize((char *)str8, &text_width, NULL))
+		checkDraw(tumDrawText((char *)str8, CAVE_X + x, y + 310, White),
+			  __FUNCTION__);
 }
 
 void vDrawStaticItems(void)
@@ -1377,119 +1157,112 @@ void vDrawStaticItems(void)
 
 void Move_text_menu(void *pvParamemter)
 {
-    static char str[50] = {0};
-    sprintf(str, "INSERT COIN");
-    //animation loop
-    for (int i=0; i<=strlen(str); i++)
-        {
-           str5[i]=str[i];
-             vTaskDelay(xDelay);
-         
-        }
+	static char str[50] = { 0 };
+	sprintf(str, "INSERT COIN");
+	//animation loop
+	for (int i = 0; i <= strlen(str); i++) {
+		str5[i] = str[i];
+		vTaskDelay(xDelay);
+	}
 
-        sprintf(str, "< 1 OR 2 PLAYERS >");
-   
-          
-    for (int i=0; i<=strlen(str); i++)
-        {
-           str6[i]=str[i];
-             vTaskDelay(xDelay);
-         
-        }
-       sprintf(str, "* 1 PLAYER    1 COIN");  
-          for ( int i=0; i<=strlen(str); i++)
-        {
-           str7[i]=str[i];
-             vTaskDelay(xDelay);
-         
-        }
-      sprintf(str, "* 2 PLAYER    2 COINS");
-    for (int i=0; i<=strlen(str); i++)
-        {
-           str8[i]=str[i];
-             vTaskDelay(xDelay);
-         
-        }vTaskSuspend(xtask_menu);
+	sprintf(str, "< 1 OR 2 PLAYERS >");
+
+	for (int i = 0; i <= strlen(str); i++) {
+		str6[i] = str[i];
+		vTaskDelay(xDelay);
+	}
+	sprintf(str, "* 1 PLAYER    1 COIN");
+	for (int i = 0; i <= strlen(str); i++) {
+		str7[i] = str[i];
+		vTaskDelay(xDelay);
+	}
+	sprintf(str, "* 2 PLAYER    2 COINS");
+	for (int i = 0; i <= strlen(str); i++) {
+		str8[i] = str[i];
+		vTaskDelay(xDelay);
+	}
+	vTaskSuspend(xtask_menu);
 }
-
-
-
 
 static int vCheckStateInput(void)
 {
-    if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
-        if (buttons.buttons[KEYCODE(1)]) {
-            button1=1;
-           buttons.buttons[KEYCODE(1)] = 0;
-            if (StateQueue) {
-                xSemaphoreGive(buttons.lock);
-                xQueueSend(StateQueue, &next_state_signal_1, 0);
-                return 0;
-            }
-            return -1;
-        }
-        xSemaphoreGive(buttons.lock);
-    }
+	if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
+		if (buttons.buttons[KEYCODE(1)]) {
+			button1 = 1;
+			buttons.buttons[KEYCODE(1)] = 0;
+			if (StateQueue) {
+				xSemaphoreGive(buttons.lock);
+				xQueueSend(StateQueue, &next_state_signal_1, 0);
+				return 0;
+			}
+			return -1;
+		}
+		xSemaphoreGive(buttons.lock);
+	}
 
-    return 0;
+	return 0;
 }
 static int vCheckStateInput2(void)
 {
-    if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
-        if (buttons.buttons[KEYCODE(2)]) {
-           buttons.buttons[KEYCODE(2)] = 0;
-            button1=0;
-            if (StateQueue) {
-               
-                xSemaphoreGive(buttons.lock);
-                xQueueSend(StateQueue, &next_state_signal_1, 0);
-                return 0;
-            }
-            return -1;
-        }
-        xSemaphoreGive(buttons.lock);
-    }
+	if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
+		if (buttons.buttons[KEYCODE(2)]) {
+			buttons.buttons[KEYCODE(2)] = 0;
+			button1 = 0;
+			if (StateQueue) {
+				xSemaphoreGive(buttons.lock);
+				xQueueSend(StateQueue, &next_state_signal_1, 0);
+				return 0;
+			}
+			return -1;
+		}
+		xSemaphoreGive(buttons.lock);
+	}
 
-    return 0;
+	return 0;
 }
 
 static int vCheckStateInputP(void)
 {
-    if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
-        if (buttons.buttons[KEYCODE(P)]) {
-           buttons.buttons[KEYCODE(P)] = 0;
-            if (StateQueue) {
-                xSemaphoreGive(buttons.lock);
-            
-                xQueueSend(StateQueue, &next_state_signal_1, 0);
-               
-                return 0;
-            }
-            return -1;
-        }
-        xSemaphoreGive(buttons.lock);
-    }
+	if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
+		if (buttons.buttons[KEYCODE(P)]) {
+			buttons.buttons[KEYCODE(P)] = 0;
+			if (StateQueue) {
+				xSemaphoreGive(buttons.lock);
 
-    return 0;
+				xQueueSend(StateQueue, &next_state_signal_1, 0);
+
+				return 0;
+			}
+			return -1;
+		}
+		xSemaphoreGive(buttons.lock);
+	}
+
+	return 0;
 }
 
 static int vCheckStateInputM(void)
 {
-    if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
-        if (buttons.buttons[KEYCODE(M)]) {
-           buttons.buttons[KEYCODE(M)] = 0;
-            if (StateQueue) {
-                xSemaphoreGive(buttons.lock);
-                xQueueSend(StateQueue, &next_state_signal_1, 0);
-                return 0;
-            }
-            return -1;
-        }
-        xSemaphoreGive(buttons.lock);
-    }
+	if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
+		if (buttons.buttons[KEYCODE(M)]) {
+			buttons.buttons[KEYCODE(M)] = 0;
+            Enemyfield();
+            score_1=0;
+            score_2=0;
+        
+       
+			if (StateQueue) {
+               // vTaskSuspend(move_enemy_position);
+				xSemaphoreGive(buttons.lock);
+				xQueueSend(StateQueue, &next_state_signal_1, 0);
+				
+			}
+			
+		}
+		xSemaphoreGive(buttons.lock);
+	}
 
-    return 0;
-}
+	}
 void UDPHandlerOne(size_t read_size, char *buffer, void *args)
 {
 	prints("UDP Recv in first handler: %s\n", buffer);
@@ -1602,12 +1375,13 @@ void vTCPDemoTask(void *pvParameters)
 }
 
 void vDemoTask2(void *pvParameters)
-{ 
-    xTaskCreate(Move_text_all, "MOVE_TEXT_all", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &Text_task_all );
+{
+		xTaskCreate(Move_text_all, "MOVE_TEXT_all", mainGENERIC_STACK_SIZE,
+		    NULL, mainGENERIC_PRIORITY, &Text_task_all);
 
-    	logo_image_30 = tumDrawLoadImage(LOGO_30);
-		logo_image_20 = tumDrawLoadImage(LOGO_20);
-		logo_image_10 = tumDrawLoadImage(LOGO_10);
+	logo_image_30 = tumDrawLoadImage(LOGO_30);
+	logo_image_20 = tumDrawLoadImage(LOGO_20);
+	logo_image_10 = tumDrawLoadImage(LOGO_10);
 	while (1) {
 		if (DrawSignal)
 			if (xSemaphoreTake(DrawSignal, portMAX_DELAY) ==
@@ -1621,13 +1395,11 @@ void vDemoTask2(void *pvParameters)
 				// Clear screen
 				checkDraw(tumDrawClear(Black), __FUNCTION__);
 				vDrawStaticItems();
-                DrawMoveText2 ();
-                PlayText();
-				
+				DrawMoveText2();
+				PlayText();
 
-                Score_Title (  score_1, high_score ,score_2);
+				Score_Title(score_1, high_score, score_2);
 				// Draw FPS in lower right corner
-				
 
 				xSemaphoreGive(ScreenLock);
 
@@ -1638,140 +1410,145 @@ void vDemoTask2(void *pvParameters)
 }
 
 void vDemoTask1(void *pvParameters)
-{   int y=0;
-    int x=50;
-      
-    tumFontSetSize((ssize_t)23);
-    
-	  xTaskCreate(Move_text_menu, "MOVE_TEXT_MEMU", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &xtask_menu );  
-  
+{
+	int y = 0;
+	int x = 50;
+
+	tumFontSetSize((ssize_t)23);
+
+	xTaskCreate(Move_text_menu, "MOVE_TEXT_MEMU", mainGENERIC_STACK_SIZE,
+		    NULL, mainGENERIC_PRIORITY, &xtask_menu);
 
 	while (1) {
 		if (DrawSignal)
-			if (xSemaphoreTake(DrawSignal, portMAX_DELAY) == pdTRUE)
-             {
-			    tumEventFetchEvents(FETCH_EVENT_BLOCK |
-						    FETCH_EVENT_NO_GL_CHECK);	
+			if (xSemaphoreTake(DrawSignal, portMAX_DELAY) ==
+			    pdTRUE) {
+				tumEventFetchEvents(FETCH_EVENT_BLOCK |
+						    FETCH_EVENT_NO_GL_CHECK);
 
 				xGetButtonInput(); // Update global button data
-                xSemaphoreTake(ScreenLock, portMAX_DELAY);
+				xSemaphoreTake(ScreenLock, portMAX_DELAY);
 				checkDraw(tumDrawClear(Black), __FUNCTION__);
-			
-			// Clear screen
- 	            DrawText(x, y);
-				Score_Title (  score_1, high_score ,score_2);
-			    xSemaphoreGive(ScreenLock);
-              
+
+				// Clear screen
+				DrawText(x, y);
+				Score_Title(score_1, high_score, score_2);
+				xSemaphoreGive(ScreenLock);
+
 				// Check for state change
 				vCheckStateInput();
-                vCheckStateInput2();
-			
+				vCheckStateInput2();
 			}
 	}
-    
-   
-    
 }
 
-void CleanText()
+void CheckButton_INPUT3(void *pvParameters)
 {
-      sprintf(str1," ");
-sprintf(str2," ");
-sprintf(str3," ");
-  sprintf(str5," ");
-sprintf(str6," ");
-sprintf(str7," ");
+    for(;;)
+        {
+        xGetButtonInput();
+        vCheckStateInput_bullet();
+        vCheckStateInput_R();
+       vCheckStateInputM();
 
-  sprintf(str8," ");
-sprintf(str9," ");
-sprintf(str10," ");
-sprintf(str11," ");
+        } 
 }
-
 void vDemoTask3(void *pvParameters)
-{ 
-  Enemyfield();
- 
-logo_image_player = tumDrawLoadImage(LOGO_player);
-logo_image_player_1= tumDrawLoadImage(LOGO_player_1);
-    int x=world_offsetX;
-    int y=world_offsetY;
-    int w=tumDrawGetLoadedImageWidth(logo_image_10)*0.6;
-    int h=tumDrawGetLoadedImageHeight(logo_image_10)*0.6;
-xTaskCreate(Move_enemy, "MOVE_enemy", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &enemy_Task );
-//xTaskCreate(move_enemy_position,"enemy_position",mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &enemy_position );
-xTaskCreate(Move_Player, "MOVE_Player", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &Player_Task );
+{
+	Enemyfield();
+    BaseType_t xReturn = pdPASS;
+    taskENTER_CRITICAL();
+	logo_image_player = tumDrawLoadImage(LOGO_player);
+	logo_image_player_1 = tumDrawLoadImage(LOGO_player_1);
+	int x = world_offsetX;
+	int y = world_offsetY;
+	int w = tumDrawGetLoadedImageWidth(logo_image_10) * 0.6;
+	int h = tumDrawGetLoadedImageHeight(logo_image_10) * 0.6;
 
-     while (1) {
-        if (DrawSignal)
-            if (xSemaphoreTake(DrawSignal, portMAX_DELAY) ==
-                pdTRUE) {
-                tumEventFetchEvents(FETCH_EVENT_BLOCK |
-                                    FETCH_EVENT_NO_GL_CHECK);
-                xSemaphoreTake(ScreenLock, portMAX_DELAY);
-                
-                checkDraw(tumDrawClear(Black), __FUNCTION__);
-                Score_Title (  score_1, high_score ,score_2);
-                vDrawHelpText(); 
-              
+	xReturn=xTaskCreate(Move_enemy, "MOVE_enemy", mainGENERIC_STACK_SIZE, NULL,
+		    mainGENERIC_PRIORITY, &enemy_Task);
+            if(pdPASS== xReturn)
+              printf("task_move_enemy created\n");
 
-                vDrawBlock_all(x,world_offsetY+9*h,w,h) ; 
+    xTaskCreate(CheckButton_INPUT3,"Check_INPUT3", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &Check_Button_Input);       
+xReturn=xTaskCreate(Kill_task_player, "Bullet_position", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &Check_kill_player);
+	        if(pdPASS== xReturn)
+              printf("task_Killed_enemy created\n");
+ xReturn= xTaskCreate(Move_Player, "MOVE_Player", mainGENERIC_STACK_SIZE, NULL,
+ mainGENERIC_PRIORITY, &Player_Task);
 
-                vDrawenemy_30(x,y,speed,0,0);
-                vDrawenemy_20(x,y,speed,0,1);
-                vDrawenemy_20(x,y+h+10,speed,0,2);
-                vDrawenemy_10(x+5,y+h+10,speed,0,3);
-                vDrawenemy_10(x+5,y+2*h+15,speed,0,4);
-                vDraw_Player(Position);
-                vDraw_Bullet(CAVE_SIZE_X+Position+15, 400-speed*2);
-                xSemaphoreGive(ScreenLock);
-                xGetButtonInput();
-                vCheckStateInput_R();
-                vDraw_PlayerLife();
-                vCheckStateInputM();
-             
-                if (life==0)
-                Gameover();
-            }
-     }
+            if(pdPASS== xReturn)
+              printf("task_move_player created\n");
+xReturn=xTaskCreate(move_enemy_position, "Enemy_Position", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY+1, &enemy_position );
+               if(pdPASS== xReturn)
+              printf("task_move_enemy_position created\n");
+    
+    while (1) {
+		if (DrawSignal)
+			if (xSemaphoreTake(DrawSignal, portMAX_DELAY) ==
+			    pdTRUE) {
+				tumEventFetchEvents(FETCH_EVENT_BLOCK |
+						    FETCH_EVENT_NO_GL_CHECK);
+				xSemaphoreTake(ScreenLock, portMAX_DELAY);
 
+				checkDraw(tumDrawClear(Black), __FUNCTION__);
+				Score_Title(score_1, high_score, score_2);
+				vDrawHelpText();
+
+				vDrawBlock_all(x-10, SCREEN_HEIGHT -200, w, h);
+
+				vDrawenemy_30(x, y, speed, 0+enemy_move, 0);
+				vDrawenemy_20(x, y, speed, 0+enemy_move, 1);
+				vDrawenemy_20(x, y + h + 10, speed, 0+enemy_move, 2);
+				vDrawenemy_10(x + 5, y + h + 10, speed, 0+enemy_move, 3);
+				vDrawenemy_10(x + 5, y + 2 * h + 15, speed, 0+enemy_move,
+					      4);
+				vDraw_Player(Position);
+				//vDraw_Bullet( 400-speed*2);
+				xSemaphoreGive(ScreenLock);
+				
+				
+				vDraw_PlayerLife();
+				
+				if (life == 0)
+					Gameover();
+			}
+	}
 }
 void vDemoTask4(void *pvParameters)
-{ 
-   
-    logo_image_player = tumDrawLoadImage(LOGO_player);
-    logo_image_mothership= tumDrawLoadImage(LOGO_mothership);
-    logo_image_player_1=  tumDrawLoadImage(LOGO_player_1);
-    xTaskCreate(Move_Player, "MOVE_Player", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &Player_Task );
+{
+	
+	logo_image_player = tumDrawLoadImage(LOGO_player);
+	logo_image_mothership = tumDrawLoadImage(LOGO_mothership);
+	logo_image_player_1 = tumDrawLoadImage(LOGO_player_1);
+	xTaskCreate(Move_Player, "MOVE_Player", mainGENERIC_STACK_SIZE, NULL,
+		    mainGENERIC_PRIORITY, &Player_Task);
 	while (1) {
 		if (DrawSignal)
-			if (xSemaphoreTake(DrawSignal, portMAX_DELAY) == pdTRUE)
-             {
-			    tumEventFetchEvents(FETCH_EVENT_BLOCK |
-						    FETCH_EVENT_NO_GL_CHECK);	
+			if (xSemaphoreTake(DrawSignal, portMAX_DELAY) ==
+			    pdTRUE) {
+				tumEventFetchEvents(FETCH_EVENT_BLOCK |
+						    FETCH_EVENT_NO_GL_CHECK);
 
 				xGetButtonInput(); // Update global button data
-                xSemaphoreTake(ScreenLock, portMAX_DELAY);
+				xSemaphoreTake(ScreenLock, portMAX_DELAY);
 				checkDraw(tumDrawClear(Black), __FUNCTION__);
-			
+
 				// Clear screen
-            
+
 				vDraw_Player(Position);
-                vDrawHelpText(); 
-				Score_Title (  score_1, high_score ,score_2);
-			    xSemaphoreGive(ScreenLock);
-                vCheckStateInput_R();
+				vDrawHelpText();
+				Score_Title(score_1, high_score, score_2);
+				xSemaphoreGive(ScreenLock);
+				vCheckStateInput_R();
 				// Check for state change
 				vCheckStateInputM();
-                vDraw_PlayerLife();
-                vDraw_Mothership();
-                if (life==0)
-                Gameover();
+				vDraw_PlayerLife();
+				vDraw_Mothership();
+				if (life == 0)
+					Gameover();
 			}
-	}       
-    
-   
-    
+	}
 }
 
 #define PRINT_TASK_ERROR(task) PRINT_ERROR("Failed to print task ##task");
@@ -1813,8 +1590,6 @@ int main(int argc, char *argv[])
 		PRINT_ERROR("Failed to init safe print");
 		goto err_init_safe_print;
 	}
-
-	
 
 	atexit(aIODeinit);
 
@@ -1869,16 +1644,16 @@ int main(int argc, char *argv[])
 		PRINT_TASK_ERROR("DemoTask2");
 		goto err_demotask2;
 	}
-     if (xTaskCreate(vDemoTask3, "DemoTask3", mainGENERIC_STACK_SIZE * 2,
-                    NULL, mainGENERIC_PRIORITY, &DemoTask3) != pdPASS) {
-       PRINT_TASK_ERROR("DemoTask3");
-        goto err_demotask3;
-    }
-    if (xTaskCreate(vDemoTask4, "DemoTask4", mainGENERIC_STACK_SIZE * 2,
-                    NULL, mainGENERIC_PRIORITY, &DemoTask4) != pdPASS) {
-       PRINT_TASK_ERROR("DemoTask4");
-        goto err_demotask4;
-    }
+	if (xTaskCreate(vDemoTask3, "DemoTask3", mainGENERIC_STACK_SIZE * 2,
+			NULL, mainGENERIC_PRIORITY, &DemoTask3) != pdPASS) {
+		PRINT_TASK_ERROR("DemoTask3");
+		goto err_demotask3;
+	}
+	if (xTaskCreate(vDemoTask4, "DemoTask4", mainGENERIC_STACK_SIZE * 2,
+			NULL, mainGENERIC_PRIORITY, &DemoTask4) != pdPASS) {
+		PRINT_TASK_ERROR("DemoTask4");
+		goto err_demotask4;
+	}
 	/** SOCKETS */
 	xTaskCreate(vUDPDemoTask, "UDPTask", mainGENERIC_STACK_SIZE * 2, NULL,
 		    configMAX_PRIORITIES - 1, &UDPDemoTask);
@@ -1893,8 +1668,8 @@ int main(int argc, char *argv[])
 
 	vTaskSuspend(DemoTask1);
 	vTaskSuspend(DemoTask2);
-    vTaskSuspend(DemoTask3);
-    vTaskSuspend(DemoTask4);
+	vTaskSuspend(DemoTask3);
+	vTaskSuspend(DemoTask4);
 
 	tumFUtilPrintTaskStateList();
 
@@ -1903,13 +1678,13 @@ int main(int argc, char *argv[])
 	return EXIT_SUCCESS;
 
 err_demotask4:
-    vTaskDelete(DemoTask2);
+	vTaskDelete(DemoTask2);
 err_demotask3:
-    vTaskDelete(DemoTask2);
+	vTaskDelete(DemoTask2);
 err_demotask2:
 	vTaskDelete(DemoTask1);
 err_demotask1:
-   
+
 	vTaskDelete(BufferSwap);
 err_bufferswap:
 	vTaskDelete(StateMachine);
