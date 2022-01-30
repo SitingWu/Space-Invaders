@@ -615,13 +615,13 @@ void Score_Title(int score_1, int high_score, int score_2)
 
 void vDraw_Bullet()
 {
-	int w = 4;
-	int h = 17;
+	int w = 8;
+	int h = 8;
 	int p;
 	int flag = 1;
-    int y=440-Bullet_speed*40;
+    int y=440-Bullet_speed*20;
 	if (Ready_bullet_p == 0) {
-		int x = player_PositionX+92;
+		int x = player_PositionX+87;
 
 		if (flag) {
 			p = x;
@@ -652,12 +652,16 @@ void Kill_task_player(void *pvParameters)
                     Bullet_speed++;
 
                     printf("Bullet_Position=%i, Y %i\n",x,y-1);
-					vTaskDelay(xDelay * 8);
-
+					vTaskDelay(xDelay * 4);
+                     Bullet_speed++;
+                    vTaskDelay(xDelay * 4);
 				} else if (world[y - 1][x] == enemy30 ||
 					   world[y - 1][x] == enemy20 ||
 					   world[y - 1][x] == enemy10) {
                     score_1 += world[y - 1][x] * 10;
+                    if(world[y][x] != enemy30 &&
+					   world[y][x] != enemy20 &&
+					   world[y][x] != enemy10)
 					world[y][x] = empty;
 					world[y - 1][x] = empty;
                     printf("Enemy_Killed_X=%i Y=%i \n",x,y-1);
@@ -1512,7 +1516,7 @@ xReturn=xTaskCreate(move_enemy_position, "Enemy_Position", mainGENERIC_STACK_SIZ
 				vDrawenemy_10(x + 5, y + 2 * h + 15, speed, 0+enemy_move,
 					      4);
 				vDraw_Player(Position);
-				vDraw_Bullet( 400-speed*2);
+				vDraw_Bullet();
 				xSemaphoreGive(ScreenLock);
 				
 				
