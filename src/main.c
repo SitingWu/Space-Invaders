@@ -115,7 +115,7 @@ static TaskHandle_t help_text_play = NULL;
 static TaskHandle_t Check_Button_Input=NULL;
 //Anfang
 #define sizex 22
-#define sizey 15
+#define sizey 13
 #define empty 0
 #define enemy30 3
 #define enemy20 2
@@ -153,7 +153,7 @@ int cur_enemy = 40;
 const int total_enemy = 40;
 int Ready_bullet_p = 1;
 int player_X = 14;
-int player_PositionX = CAVE_SIZE_X-50;
+int player_PositionX = CAVE_SIZE_X-30;
 int enemy_move=0;
 
 int world[sizey][sizex];
@@ -215,7 +215,7 @@ void move_enemy_position()
              
 		for (int k = 1; k < 9; k++) {
                 enemy_move=k;
-                  printf("Enemy_Move %i\n",enemy_move);
+             //     printf("Enemy_Move %i\n",enemy_move);
 		         int x = 0;
         	//enemy30
 			for (x = 0+k; x <= 14+k; x += 2)
@@ -247,9 +247,9 @@ void move_enemy_position()
 					world[y][x] = enemy10;
 				}
             }
-                printf("enemy_x=%i\n",x);
+             //   printf("enemy_x=%i\n",x);
 			}vTaskDelay(xDelay * 8);
-                printf("Moving_left %i\n",k);
+             //   printf("Moving_left %i\n",k);
 
     	}  
 	
@@ -288,11 +288,11 @@ void move_enemy_position()
 					world[y][x - 1] = enemy10;
 				}
 				} 
-                printf("enemy_x_2=%i\n",x);
+         //       printf("enemy_x_2=%i\n",x);
 			 } enemy_move=j-1;
-            printf("Enemy_Move_2 %i\n",enemy_move);
+          //  printf("Enemy_Move_2 %i\n",enemy_move);
           vTaskDelay(xDelay * 8);
-		 printf("Moving_right %i\n",j);
+		// printf("Moving_right %i\n",j);
 		    } 
         }
      }
@@ -641,13 +641,14 @@ void Kill_task_player(void *pvParameters)
             printf("shooting\n");
              
 			for (int y = sizey - 3; y >= 0; y--) {
-                 printf("player_matrix=%i\n", player_X);
-                 printf("player_X=%i\n", x);
-                  printf("player_y=%i\n", y);
+               //  printf("player_matrix=%i\n", player_X);
+              //   printf("player_X=%i\n", x);
+              //    printf("player_y=%i\n", y);
 				if (world[y - 1][x] == empty&& y>1) {
 					Ready_bullet_p = 0;
 					world[y][x] = empty;
 					world[y - 1][x] = player_bullet;
+                    printf("Bullet_Position=%i, Y %i\n",x,y-1);
 					vTaskDelay(xDelay * 8);
 
 				} else if (world[y - 1][x] == enemy30 ||
@@ -656,7 +657,7 @@ void Kill_task_player(void *pvParameters)
                     score_1 += world[y - 1][x] * 10;
 					world[y][x] = empty;
 					world[y - 1][x] = empty;
-                    
+                    printf("Enemy_Killed_X=%i Y=%i \n",x,y-1);
 					cur_enemy--;
                     
                     vTaskDelay(xDelay );
@@ -679,7 +680,7 @@ void Kill_task_player(void *pvParameters)
                     
                     vTaskDelay(xDelay );
 					Ready_bullet_p=1;
-                    printf("Ready_bullet_p_b= %i\n",Ready_bullet_p);
+                   // printf("Ready_bullet_p_b= %i\n",Ready_bullet_p);
                     break;
 					
 				}
@@ -689,8 +690,8 @@ void Kill_task_player(void *pvParameters)
                    
                      vTaskDelay(xDelay );
                      Ready_bullet_p=1;
-                    printf("Ready_bullet_p_b= %i\n",Ready_bullet_p);
-                    printf("Shoot again\n");
+                    //printf("Ready_bullet_p_b= %i\n",Ready_bullet_p);
+                    //printf("Shoot again\n");
                     break;
                 }
 			}
@@ -710,8 +711,9 @@ void Kill_task_player(void *pvParameters)
 			buttons.buttons[KEYCODE(SPACE)] = 0;
 			if (Ready_bullet_p) {
 				Ready_bullet_p = 0;
+                world[sizey - 2][player_X] = player_bullet;
 				vTaskResume(Check_kill_player);
-				world[sizey - 3][player_X] = player_bullet;
+				
 			}
 		
 		}
@@ -866,7 +868,7 @@ void vDrawLogo(void)
 }
 void vDrawenemy_30(int x, int y, int v, int x1, int y1)
 {
-	int Distand = 55;
+	int Distand = 45;
 	x += v;
 
 	tumDrawSetLoadedImageScale(logo_image_30, 0.03);
@@ -902,7 +904,7 @@ void vDrawenemy_20(int x, int y, int v, int x1, int y1)
 	y += 35;
 	x += 5 + v;
 
-	int Distand = 55;
+	int Distand = 45;
 
 	tumDrawSetLoadedImageScale(logo_image_20, 0.115);
 	if (world[y1][x1] == enemy20)
@@ -934,7 +936,7 @@ void vDrawenemy_20(int x, int y, int v, int x1, int y1)
 }
 void vDrawenemy_10(int x, int y, int v, int x1, int y1)
 {
-	int Distand = 55;
+	int Distand = 45;
 	y += 65;
 	x += v;
 	tumDrawSetLoadedImageScale(logo_image_10, 0.04);
@@ -973,18 +975,20 @@ void Move_Player(void *pvParameters)
 		if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
 			if (buttons.buttons[KEYCODE(RIGHT)]) {
 				buttons.buttons[KEYCODE(RIGHT)] = 0;
-				if (Position < 220)
-					Position += 23;
-				player_PositionX += 23;
-				player_X++;
+				if (Position < 200)
+                {
+					Position += 25;
+				player_PositionX += 25;
+				player_X++;}
                 printf("player_matrix=%i\n", player_X);
+                
 
 			} else if (buttons.buttons[KEYCODE(LEFT)]) {
 				buttons.buttons[KEYCODE(LEFT)] = 0;
-				if (Position > -280)
-					Position -= 23;
-				player_PositionX -= 23;
-				player_X--;
+				if (Position > -340){
+					Position -= 25;
+				player_PositionX -= 25;
+				player_X--;}
 				printf("player_matrix=%i\n", player_X);
 			}
 
@@ -1084,7 +1088,7 @@ void vDrawBlock_all(int q, int p, int w, int h)
 
 void vDraw_Player(int p)
 {
-	int x = player_offsetX + p;
+	int x = player_offsetX +35+ p;
 	int y = SCREEN_HEIGHT-130;
 
 	tumDrawSetLoadedImageScale(logo_image_player, 0.22);
@@ -1460,7 +1464,7 @@ void vDemoTask3(void *pvParameters)
     taskENTER_CRITICAL();
 	logo_image_player = tumDrawLoadImage(LOGO_player);
 	logo_image_player_1 = tumDrawLoadImage(LOGO_player_1);
-	int x = world_offsetX;
+	int x = world_offsetX+20;
 	int y = world_offsetY;
 	int w = tumDrawGetLoadedImageWidth(logo_image_10) * 0.6;
 	int h = tumDrawGetLoadedImageHeight(logo_image_10) * 0.6;
@@ -1495,7 +1499,7 @@ xReturn=xTaskCreate(move_enemy_position, "Enemy_Position", mainGENERIC_STACK_SIZ
 				Score_Title(score_1, high_score, score_2);
 				vDrawHelpText();
 
-				vDrawBlock_all(x-10, SCREEN_HEIGHT -200, w, h);
+				vDrawBlock_all(x+10, SCREEN_HEIGHT -200, w, h);
 
 				vDrawenemy_30(x, y, speed, 0+enemy_move, 0);
 				vDrawenemy_20(x, y, speed, 0+enemy_move, 1);

@@ -2,7 +2,7 @@
 #define __EMULATOR_CONFIG_H__
 
 #define WINDOW_TITLE "My FreeRTOS Emulator"
-#define SCREEN_WIDTH 640
+#define SCREEN_WIDTH 660
 #define SCREEN_HEIGHT 580
 #define RESOURCES_DIRECTORY "../resources"
 #define FONTS_DIRECTORY "../resources/fonts"
