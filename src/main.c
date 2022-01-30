@@ -612,25 +612,29 @@ void Score_Title(int score_1, int high_score, int score_2)
 
 	tumFontSetSize(prev_font_size);
 }
-
+ int flag = 1;
+ int p;
+	
 void vDraw_Bullet()
 {
 	int w = 8;
 	int h = 8;
-	int p;
-	int flag = 1;
+	
     int y=440-Bullet_speed*20;
 	if (Ready_bullet_p == 0) {
 		int x = player_PositionX+87;
-
+           
 		if (flag) {
 			p = x;
-	    	flag = 0;
-		}
-		if (world[sizey-2][player_X]==player_bullet)
+            flag=0;
+          
+        }  printf("flag=%i",flag);
+		printf("Bullet_p=%i", p);
+        //if (world[sizey-2-Bullet_speed/2][p_x]==player_bullet)
 		checkDraw(tumDrawFilledBox(p, y, w, h, Green), __FUNCTION__);
 	}
-	flag = 1;
+        else
+	    flag = 1;
 }
 void Kill_task_player(void *pvParameters)
 
@@ -641,7 +645,7 @@ void Kill_task_player(void *pvParameters)
             int x = player_X;
             printf("shooting\n");
              
-			for (int y = sizey - 3; y >= 0; y--) {
+			for (int y = sizey - 2; y >= 0; y--) {
                //  printf("player_matrix=%i\n", player_X);
               //   printf("player_X=%i\n", x);
               //    printf("player_y=%i\n", y);
@@ -668,7 +672,7 @@ void Kill_task_player(void *pvParameters)
 					cur_enemy--;
                     Bullet_speed=0;
                     vTaskDelay(xDelay );
-	    Ready_bullet_p=1;
+	             Ready_bullet_p=1;
                    break;
 				
 				} 
