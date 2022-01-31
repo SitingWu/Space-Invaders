@@ -113,6 +113,8 @@ static TaskHandle_t Check_kill_enemy = NULL;
 static TaskHandle_t enemy_position = NULL;
 static TaskHandle_t help_text_play = NULL;
 static TaskHandle_t Check_Button_Input=NULL;
+static TaskHandle_t EnemyShoot_task=NULL;
+
 //Anfang
 #define sizex 22
 #define sizey 13
@@ -156,7 +158,12 @@ int player_X = 14;
 int player_PositionX = CAVE_SIZE_X-30;
 int enemy_move=0;
 int Bullet_speed;
-
+int Bullet_speed_enemy;
+int lowestEnemy=4;
+int Ready_bullet_e=1;
+int enemy_shoot;
+int enemy_num;
+int enemy_bullet_x;
 int world[sizey][sizex];
 void Enemyfield()
 {
@@ -187,7 +194,7 @@ void Enemyfield()
 	}
 	//enemy10
 	for (y = 3; y < 5; y++) {
-		for (x = 0; x <= 16; x += 2) {
+		for (x = 0; x <= 14; x += 2) {
 			world[y][x] = enemy10;
 		}
 	}
@@ -617,25 +624,26 @@ void Score_Title(int score_1, int high_score, int score_2)
 	
 void vDraw_Bullet()
 {
-	int w = 8;
-	int h = 8;
+	int w = 6;
+	int h = 6;
 	
-    int y=440-Bullet_speed*20;
+    int y=440-Bullet_speed*9.2;
 	if (Ready_bullet_p == 0) {
-		int x = player_PositionX+87;
+		int x = player_PositionX+75;
            
 		if (flag) {
 			p = x;
             flag=0;
           
-        }  printf("flag=%i",flag);
-		printf("Bullet_p=%i", p);
+        } // printf("flag=%i",flag);
+		//printf("Bullet_p=%i", p);
         //if (world[sizey-2-Bullet_speed/2][p_x]==player_bullet)
 		checkDraw(tumDrawFilledBox(p, y, w, h, Green), __FUNCTION__);
 	}
         else
 	    flag = 1;
 }
+
 void Kill_task_player(void *pvParameters)
 
 {  
@@ -643,7 +651,7 @@ void Kill_task_player(void *pvParameters)
           
 		if (Ready_bullet_p == 0) {
             int x = player_X;
-            printf("shooting\n");
+          //  printf("shooting\n");
              
 			for (int y = sizey - 2; y >= 0; y--) {
                //  printf("player_matrix=%i\n", player_X);
@@ -655,10 +663,14 @@ void Kill_task_player(void *pvParameters)
 					world[y - 1][x] = player_bullet;
                     Bullet_speed++;
 
-                    printf("Bullet_Position=%i, Y %i\n",x,y-1);
-					vTaskDelay(xDelay * 4);
+                //    printf("Bullet_Position=%i, Y %i\n",x,y-1);
+					vTaskDelay(xDelay * 2);
                      Bullet_speed++;
-                    vTaskDelay(xDelay * 4);
+                    vTaskDelay(xDelay * 2);
+                    Bullet_speed++;
+               vTaskDelay(xDelay * 2);
+                    Bullet_speed++;
+ 
 				} else if (world[y - 1][x] == enemy30 ||
 					   world[y - 1][x] == enemy20 ||
 					   world[y - 1][x] == enemy10) {
@@ -668,10 +680,10 @@ void Kill_task_player(void *pvParameters)
 					   world[y][x] != enemy10)
 					world[y][x] = empty;
 					world[y - 1][x] = empty;
-                    printf("Enemy_Killed_X=%i Y=%i \n",x,y-1);
+              //      printf("Enemy_Killed_X=%i Y=%i \n",x,y-1);
 					cur_enemy--;
                     Bullet_speed=0;
-                    vTaskDelay(xDelay );
+                    vTaskDelay(xDelay/5);
 	             Ready_bullet_p=1;
                    break;
 				
@@ -680,7 +692,7 @@ void Kill_task_player(void *pvParameters)
 					world[y][x] = empty;
 					world[y - 1][x] = empty;
                     Bullet_speed=0;
-                    vTaskDelay(xDelay );
+                    vTaskDelay(xDelay/5 );
 					 Ready_bullet_p=1;
                     break;
 					
@@ -689,7 +701,7 @@ void Kill_task_player(void *pvParameters)
 					world[y][x] = empty;
 					world[y - 1][x] = empty;
                      Bullet_speed=0;
-                    vTaskDelay(xDelay );
+                    vTaskDelay(xDelay/5 );
 					Ready_bullet_p=1;
                    // printf("Ready_bullet_p_b= %i\n",Ready_bullet_p);
                     break;
@@ -699,7 +711,7 @@ void Kill_task_player(void *pvParameters)
                 {   world[y][x] = empty;
 					world[y - 1][x] = empty;
                      Bullet_speed=0;
-                     vTaskDelay(xDelay );
+                     vTaskDelay(xDelay/5 );
                      Ready_bullet_p=1;
                     //printf("Ready_bullet_p_b= %i\n",Ready_bullet_p);
                     //printf("Shoot again\n");
@@ -708,11 +720,169 @@ void Kill_task_player(void *pvParameters)
 			}
             
 		} else
-            printf("Bullet Ready!\n");
+           // printf("Bullet Ready!\n");
             
             vTaskSuspend(Check_kill_player);
         
 	}
+}
+
+static int LowestEnemy()
+{
+    int y=lowestEnemy;
+    if(lowestEnemy>=0)
+    {
+        int cur_lowestenemy=0;
+        for(;;)
+        {
+        for (int x=0;x<=22;x++)
+        {   
+                if(world[y][x]==enemy10||
+                world[y][x]==enemy20||
+                world[y][x]==enemy30 )
+                    cur_lowestenemy+=1;  
+                    printf("CUR_ENEMY_X=%i\n",x);
+                    printf("CUR_ENEMY=%i\n",cur_lowestenemy);
+
+                
+             }
+                    if(cur_lowestenemy==0)
+                    lowestEnemy-=1;
+                    else
+                    {
+                    return cur_lowestenemy;
+                        break;
+                    }
+     }           
+  }
+}
+
+void Enemy_Shoot(void* pvParameter)
+{   
+         vTaskDelay(xDelay*15);
+         int cur_enemy=LowestEnemy();
+    for(;;)
+    {  if(Ready_bullet_p==0) //check current Anzahl of lowstEnemy when player shoot
+        cur_enemy=LowestEnemy();
+      int enemy_x;
+    int y=lowestEnemy;
+    int shoot =rand()% cur_enemy;
+  
+    int flag=0;
+    printf("Cur_Enemy=%i \n",cur_enemy);
+    printf("Shoot=%i \n",shoot);
+    //check random enemy
+    for (int x=0;x<=22;x++)
+    { 
+        if(world[y][x]==enemy10||
+            world[y][x]==enemy20||
+            world[y][x]==enemy30)
+            {   shoot-=1;
+             
+                Bullet_speed_enemy=0;
+                if(shoot ==1)
+                {Ready_bullet_e=0;
+                enemy_x=x;
+                enemy_bullet_x=x*25+world_offsetX;
+                world[y+1][x]=enemy_bullet;
+                
+                break;
+                }
+            }
+           
+     } 
+
+      printf("enemy_Ready=%i \n",Ready_bullet_e);
+        printf("enemy_num=%i \n",enemy_num);
+        printf("enemy_bullet=%i ,Y=%i \n",enemy_x,y+1);
+    //shooting
+    for(y=lowestEnemy+1;y<=sizey-1;y++)
+    {   if (world[y+1][enemy_x]==empty && y+1==13)
+            {
+                 world[y][enemy_x]=empty;
+                 world[y+1][enemy_x]=empty;
+                Ready_bullet_e=1;
+                printf("Ready_Enemy_bullet=%i\n",Ready_bullet_e);
+                 vTaskDelay(xDelay/5);
+           
+                break;
+            }   
+        if (world[y+1][enemy_x]==empty)
+        {   world[y][enemy_x]=empty;
+            world[y+1][enemy_x]=enemy_bullet;
+                Ready_bullet_e=0;
+                Bullet_speed_enemy++;
+                vTaskDelay(xDelay*2);
+                Bullet_speed_enemy++;
+                vTaskDelay(xDelay*2);
+                 Bullet_speed_enemy++;
+                vTaskDelay(xDelay*2);
+               
+                printf("enemy_bullet=%i ,Y=%i \n",enemy_x,y+1);
+               
+            }
+            
+        else if (world[y+1][enemy_x]==block)
+        {   
+            world[y][enemy_x]=empty;
+            world[y+1][enemy_x]=empty;
+            printf("enemy_bullet==Block\n");
+            printf("enemy_bulletX=%i Y=%i \n",enemy_x,y+1);
+              Ready_bullet_e=1;
+              vTaskDelay(xDelay/5);
+           
+                break;
+        }
+        else if (world[y+1][enemy_x]==player_bullet)
+        {   
+            
+            world[y][enemy_x]=empty;
+            world[y+1][enemy_x]=empty;
+              Ready_bullet_e=1;
+              vTaskDelay(xDelay/5);
+           
+            break;
+        }    
+        else if (world[y+1][enemy_x]==player)  
+         {  
+            world[y][enemy_x]=empty;
+            world[y+1][enemy_x]=empty;
+            life-=1;
+            Ready_bullet_e=1;
+            vTaskSuspend(Kill_task_player);
+            vTaskDelay(xDelay*8);
+            
+           if(life>=1)
+           {
+               world[sizey-1][sizex/2]=player;
+               player_PositionX=CAVE_SIZE_X-30;
+               vTaskResume(Kill_task_player);
+           }
+           break;
+           
+         }
+
+    }vTaskDelay(xDelay*15);
+
+    }
+   
+}
+
+
+void vDrawEnemyBullet()
+{
+    int w = 6;
+	int h = 6;
+	int p1 = enemy_bullet_x;
+    int y=world_offsetY+(lowestEnemy+1)*31+Bullet_speed_enemy*9.6;
+    if (Ready_bullet_e == 0) {
+		
+        
+		printf("Bullet_e=%i\n", p1);
+       
+		checkDraw(tumDrawFilledBox(p1, y, w, h, Red), __FUNCTION__);
+	  }
+        
 }
 
  void vCheckStateInput_bullet(void)
@@ -950,6 +1120,7 @@ void vDrawenemy_10(int x, int y, int v, int x1, int y1)
 	int Distand = 45;
 	y += 65;
 	x += v;
+    
 	tumDrawSetLoadedImageScale(logo_image_10, 0.04);
 	if (world[y1][x1] == enemy10)
 		checkDraw(tumDrawLoadedImage(logo_image_10, x, y),
@@ -1100,7 +1271,7 @@ void vDrawBlock_all(int q, int p, int w, int h)
 
 void vDraw_Player(int p)
 {
-	int x = player_offsetX +35+ p;
+	int x = player_PositionX +65+ p;
 	int y = SCREEN_HEIGHT-130;
 
 	tumDrawSetLoadedImageScale(logo_image_player, 0.22);
@@ -1485,7 +1656,7 @@ void vDemoTask3(void *pvParameters)
 		    mainGENERIC_PRIORITY, &enemy_Task);
             if(pdPASS== xReturn)
               printf("task_move_enemy created\n");
-
+    xTaskCreate(Enemy_Shoot,"Enemy_Shoot", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &EnemyShoot_task);
     xTaskCreate(CheckButton_INPUT3,"Check_INPUT3", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &Check_Button_Input);       
 xReturn=xTaskCreate(Kill_task_player, "Bullet_position", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &Check_kill_player);
 	        if(pdPASS== xReturn)
@@ -1511,7 +1682,7 @@ xReturn=xTaskCreate(move_enemy_position, "Enemy_Position", mainGENERIC_STACK_SIZ
 				Score_Title(score_1, high_score, score_2);
 				vDrawHelpText();
 
-				vDrawBlock_all(x+10, SCREEN_HEIGHT -200, w, h);
+				vDrawBlock_all(x, SCREEN_HEIGHT -200, w, h);
 
 				vDrawenemy_30(x, y, speed, 0+enemy_move, 0);
 				vDrawenemy_20(x, y, speed, 0+enemy_move, 1);
@@ -1520,6 +1691,7 @@ xReturn=xTaskCreate(move_enemy_position, "Enemy_Position", mainGENERIC_STACK_SIZ
 				vDrawenemy_10(x + 5, y + 2 * h + 15, speed, 0+enemy_move,
 					      4);
 				vDraw_Player(Position);
+                vDrawEnemyBullet();
 				vDraw_Bullet();
 				xSemaphoreGive(ScreenLock);
 				
@@ -1561,6 +1733,7 @@ void vDemoTask4(void *pvParameters)
 				vCheckStateInputM();
 				vDraw_PlayerLife();
 				vDraw_Mothership();
+              
 				if (life == 0)
 					Gameover();
 			}
