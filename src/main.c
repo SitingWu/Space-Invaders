@@ -1,6 +1,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include <SDL2/SDL_scancode.h>
 
@@ -9,6 +10,9 @@
 #include "semphr.h"
 #include "task.h"
 
+
+
+#include "TUM_Utils.h"
 #include "TUM_Ball.h"
 #include "TUM_Draw.h"
 #include "TUM_Font.h"
@@ -17,6 +21,8 @@
 #include "TUM_Utils.h"
 #include "TUM_FreeRTOS_Utils.h"
 #include "TUM_Print.h"
+
+
 
 #include "AsyncIO.h"
 
@@ -49,6 +55,26 @@
 
 #define player_offsetX SCREEN_WIDTH / 2
 
+/** GAME DIMENSIONS */
+#define WALL_OFFSET 20
+#define WALL_THICKNESS 10
+#define GAME_FIELD_OUTER WALL_OFFSET-15
+#define GAME_FIELD_INNER (GAME_FIELD_OUTER + WALL_THICKNESS)
+#define GAME_FIELD_HEIGHT_INNER (SCREEN_HEIGHT - 2 * GAME_FIELD_INNER)
+#define GAME_FIELD_HEIGHT_OUTER (SCREEN_HEIGHT - 2 * GAME_FIELD_OUTER)
+#define GAME_FIELD_WIDTH_INNER (SCREEN_WIDTH - 5 * GAME_FIELD_INNER)
+#define GAME_FIELD_WIDTH_OUTER (SCREEN_WIDTH - 2 * GAME_FIELD_OUTER)
+
+
+/** PADDLE MOVEMENT */
+#define PADDLE_INCREMENT_SIZE 5
+#define PADDLE_LENGTH (SCREEN_WIDTH / 10)-10
+#define PADDLE_INCREMENT_COUNT                                                 \
+    (GAME_FIELD_WIDTH_INNER - PADDLE_LENGTH) / PADDLE_INCREMENT_SIZE
+#define PADDLE_START_LOCATION_X ((SCREEN_WIDTH / 2) - (PADDLE_LENGTH / 2))
+#define PADDLE_EDGE_OFFSET 10
+#define PADDLE_HIGHT 20
+
 //Bildern define
 
 #define LOGO_30 "30point.jpg"
@@ -58,9 +84,15 @@
 #define LOGO_player_1 "player_1"
 #define LOGO_mothership "mothership"
 
+/** PADDLE MOVING FLAGS */
+#define START_LEFT 1
+#define START_RIGHT 2
+
+
 #define UDP_BUFFER_SIZE 2000
 #define UDP_TEST_PORT_1 1234
 #define UDP_TEST_PORT_2 4321
+#define UDP_TRANSMIT_PORT 1235
 #define MSG_QUEUE_BUFFER_SIZE 1000
 #define MSG_QUEUE_MAX_MSG_COUNT 10
 #define TCP_BUFFER_SIZE 2000
@@ -77,6 +109,8 @@ aIO_handle_t mq_two = NULL;
 aIO_handle_t udp_soc_one = NULL;
 aIO_handle_t udp_soc_two = NULL;
 aIO_handle_t tcp_soc = NULL;
+//2Player
+aIO_handle_t udp_soc_receive = NULL, udp_soc_transmit = NULL;
 
 const unsigned char next_state_signal_1 = NEXT_TASK_1;
 
@@ -96,9 +130,20 @@ static TaskHandle_t DemoSendTask = NULL;
 static QueueHandle_t StateQueue = NULL;
 static SemaphoreHandle_t DrawSignal = NULL;
 static SemaphoreHandle_t ScreenLock = NULL;
+static SemaphoreHandle_t BulletInactivePlayer = NULL;
 static QueueHandle_t ScoreQueue30 = NULL;
 static QueueHandle_t ScoreQueue20 = NULL;
 static QueueHandle_t ScoreQueue10 = NULL;
+static QueueHandle_t MothershipScoreQueue =NULL;
+static QueueHandle_t LifeCountQueue =NULL;
+
+//2Player
+static QueueHandle_t PlayerScoreQueue = NULL;
+static QueueHandle_t StartDirectionQueue = NULL;
+static QueueHandle_t NextKeyQueue = NULL;
+static QueueHandle_t BulletYQueue = NULL;
+static QueueHandle_t PaddleXQueue = NULL;
+static QueueHandle_t DifficultyQueue = NULL;
 
 
 static image_handle_t logo_image_30 = NULL;
@@ -118,6 +163,16 @@ static TaskHandle_t enemy_position = NULL;
 static TaskHandle_t help_text_play = NULL;
 static TaskHandle_t Check_Button_Input=NULL;
 static TaskHandle_t EnemyShoot_task=NULL;
+
+//2Player
+TaskHandle_t MothershipTask = NULL;
+TaskHandle_t PlayerTask = NULL;
+TaskHandle_t MothershipBulletTask = NULL;
+TaskHandle_t PlayerBulletTask = NULL;
+TaskHandle_t PausedStateTask = NULL;
+TaskHandle_t UDPControlTask = NULL;
+static SemaphoreHandle_t BulletInactive = NULL;
+static SemaphoreHandle_t HandleUDP = NULL;
 
 //Anfang
 #define sizex 22
@@ -139,7 +194,6 @@ static buttons_buffer_t buttons = { 0 };
 static char str1[50] = { 0 };
 static char str2[50] = { 0 };
 static char str3[50] = { 0 };
-static char str4[50] = { 0 };
 static char str5[50] = { 0 };
 static char str6[50] = { 0 };
 static char str7[50] = { 0 };
@@ -150,12 +204,9 @@ static char str11[50] = { 0 };
 
 // globale variable
 int xDelay =8;
-//int score_1 = 0;
-//int high_score = 0;
-//int score_2 = 0;
 int speed = 0;
 int button1 = 0;
-int life = 3;
+//int life = 3;
 int cur_enemy = 40;
 const int total_enemy = 40;
 int Ready_bullet_p = 1;
@@ -171,17 +222,9 @@ int enemy_num=0;
 int enemy_bullet_x=0;
 int Position = 0;
 int world[sizey][sizex];
-int Diffcult=0;
 
-void DIFFICULT_SET(int Diffcult)
-{
-    if (Diffcult==1||cur_enemy<=30)
-    xDelay=7;
-    else if (Diffcult==2||cur_enemy<=22)
-    xDelay=6;
-    else if (Diffcult==3||cur_enemy<=15)
-    xDelay=5;
-}
+
+
 void Enemyfield()
 {
 	int x = 0;
@@ -195,7 +238,9 @@ void Enemyfield()
 	}
 
 	//player
-	world[sizey - 1][sizex / 2] = player;
+	world[sizey - 1][11] = player;
+    world[sizey - 1][10] = player;
+    world[sizey - 1][12] = player;
 
 	//enemy30
 	for (x = 0; x <= 14; x += 2)
@@ -240,9 +285,9 @@ void move_enemy_position()
 	for (;;)
      {     Down++;
            
-           printf("Down=%i\n",Down);
-           printf("Down_Y=%i\n",y);
-           printf("Down_d=%i\n",d);
+         //  printf("Down=%i\n",Down);
+         //  printf("Down_Y=%i\n",y);
+         //  printf("Down_d=%i\n",d);
             if  (Down==3)
             {
                     d=1 ;d_max=4; down+=32.5 ;
@@ -279,11 +324,11 @@ void move_enemy_position()
              //     printf("Enemy_Move %i\n",enemy_move);
 		         int x = 0;
                  
-                  printf("enemy_Y=d =%i\n",y);
+            //      printf("enemy_Y=d =%i\n",y);
         	//enemy30
 			for (x = 0+k; x <= 14+k; x += 2)
             {    y=d;  
-                printf("enemy30_Y1=%i\n",y);                  
+            //    printf("enemy30_Y1=%i\n",y);                  
 			    if(world[y][x-1] == empty)
                     world[y][x] = empty;
                 else
@@ -292,7 +337,7 @@ void move_enemy_position()
 				world[y][x] = enemy30;
 
                }   
-               printf("enemy30_Y=%i\n",y);
+           //    printf("enemy30_Y=%i\n",y);
 			//enemy20
 			for (y=d+1; y <d_max; y++) {
                  if(world[y][x-1] == empty)
@@ -300,7 +345,7 @@ void move_enemy_position()
                 else{
 					world[y][x-1] = empty;
 					world[y][x] = enemy20;
-				}printf("enemy20_Y=%i\n",y);
+				}//printf("enemy20_Y=%i\n",y);
             }
 			
 			//enemy10
@@ -312,7 +357,7 @@ void move_enemy_position()
                 else{
 					world[y][x-1] = empty;
 					world[y][x] = enemy10;
-				}printf("enemy10_Y=%i\n",y);
+				}//printf("enemy10_Y=%i\n",y);
             }
              //   printf("enemy_x=%i\n",x);
 			}vTaskDelay(xDelay * 8);
@@ -624,6 +669,7 @@ void vDrawHelpText(void)
 {
 	static char str[50] = { 0 };
     static char str1[50] = { 0 };
+    static char str2[50]={0};
     static int text_width;
 	ssize_t prev_font_size = tumFontGetCurFontSize();
 
@@ -631,6 +677,7 @@ void vDrawHelpText(void)
 
 	sprintf(str, "[M]enu, [R]est");
     sprintf(str1, "[SPACE] for Shoot!");
+    sprintf(str2, "[D]ifficult");
 
 	if (!tumGetTextSize((char *)str, &text_width, NULL))
 		checkDraw(tumDrawText(str, SCREEN_WIDTH - text_width - 10,
@@ -640,18 +687,24 @@ void vDrawHelpText(void)
 		checkDraw(tumDrawText(str1, SCREEN_WIDTH - text_width - 10,
 				      DEFAULT_FONT_SIZE * 0.5+20, White),
 			  __FUNCTION__);
+    checkDraw(tumDrawText(str, SCREEN_WIDTH - text_width - 10,
+				      DEFAULT_FONT_SIZE * 0.5+45
+                    , White),
+			  __FUNCTION__);
+
 
 
 	tumFontSetSize(prev_font_size);
 }
-
-void Score_Title(int score_1, int high_score, int score_2)
+ int high_score_1=0;
+int high_score_2=0;
+void Score_Title(int score_1,  int score_2)
 {
 	int x = 75;
 	int y = 10;
 	static char str_1[100] = { 0 };
 	static char str_2[100] = { 0 };
-	static char str_3[100] = { 0 };
+	//static char str_3[100] = { 0 };
 
 
 	static int text_width;
@@ -661,12 +714,14 @@ void Score_Title(int score_1, int high_score, int score_2)
    
 
 	tumFontSetSize((ssize_t)22);
-    if(score_1>high_score)
-    high_score=score_1;
+    if(score_1>high_score_1)
+    high_score_1=score_1;
+	  if(score_2>high_score_2)
+    high_score_2=score_2;
 	sprintf(str_1, "  SCORE< 1 >    HI-SCORE   SCORE< 2 > ");
-	sprintf(str_2, "%4d                     %4d                  %4d ",
-		score_1, high_score, score_2);
-	sprintf(str_3, "CREDIT ");
+	sprintf(str_2, "%04d                 %04d  %04d               %04d ",
+		score_1, high_score_1, high_score_2, score_2);
+	//sprintf(str_3, "CREDIT ");
 
 	if (!tumGetTextSize((char *)str_1, &text_width, NULL))
 		checkDraw(tumDrawText((char *)str_1, x, y, White),
@@ -676,11 +731,11 @@ void Score_Title(int score_1, int high_score, int score_2)
 		checkDraw(tumDrawText((char *)str_2, x, y + 30, White),
 			  __FUNCTION__);
 
-	if (!tumGetTextSize((char *)str_3, &text_width, NULL))
+/*	if (!tumGetTextSize((char *)str_3, &text_width, NULL))
 		checkDraw(tumDrawText((char *)str_3,
 				      (SCREEN_WIDTH - text_width - 70),
 				      SCREEN_HEIGHT - 50, White),
-			  __FUNCTION__);
+			  __FUNCTION__);*/
 
 	tumFontSetSize(prev_font_size);
 }
@@ -692,10 +747,10 @@ void vDraw_Bullet()
 	int w = 6;
 	int h = 6;
 	
-    int y=440-Bullet_speed*9;
-	if (Ready_bullet_p == 0) {
+    int y=440-Bullet_speed*(8.5-(lowestEnemy-4)*0.3);
+	if (xSemaphoreTake(BulletInactivePlayer, 0)==pdTRUE) {
 		int x = player_PositionX+25;
-           
+          printf("BulletInactivePlayer==False"); 
 		if (flag) {
 			p = x;
             flag=0;
@@ -712,13 +767,15 @@ void vDraw_Bullet()
 void Kill_task_player(void *pvParameters)
 
 {  const unsigned char point = 1;
-    
+    DifficultyQueue = xQueueCreate(5, sizeof(unsigned char));
     ScoreQueue30 = xQueueCreate(10, sizeof(unsigned char));
     ScoreQueue20 = xQueueCreate(10, sizeof(unsigned char));
     ScoreQueue10 = xQueueCreate(10, sizeof(unsigned char));
+    
+    BulletInactivePlayer = xSemaphoreCreateBinary();
 	for (;;) {
           
-		if (Ready_bullet_p == 0) {
+		if (xSemaphoreTake(BulletInactivePlayer, 0)==pdTRUE) {
             int x = player_X;
           //  printf("shooting\n");
              
@@ -731,13 +788,16 @@ void Kill_task_player(void *pvParameters)
 					world[y][x] = empty;
 					world[y - 1][x] = player_bullet;
                     Bullet_speed++;
-
+                    xSemaphoreGive(BulletInactivePlayer);
                 //    printf("Bullet_Position=%i, Y %i\n",x,y-1);
 					vTaskDelay(xDelay * 2);
+                    xSemaphoreGive(BulletInactivePlayer);
                      Bullet_speed++;
                     vTaskDelay(xDelay * 2);
+                    xSemaphoreGive(BulletInactivePlayer);
                     Bullet_speed++;
                vTaskDelay(xDelay * 2);
+               xSemaphoreGive(BulletInactivePlayer);
                     Bullet_speed++;
  
 				} else if (world[y - 1][x] == enemy30 ||
@@ -770,7 +830,8 @@ void Kill_task_player(void *pvParameters)
 					cur_enemy--;
                     Bullet_speed=0;
                     vTaskDelay(xDelay/5);
-	             Ready_bullet_p=1;
+                    xSemaphoreTake(BulletInactivePlayer,0);
+	             //Ready_bullet_p=1;
                    break;
 				
 				} 
@@ -779,7 +840,7 @@ void Kill_task_player(void *pvParameters)
 					world[y - 1][x] = empty;
                     Bullet_speed=0;
                     vTaskDelay(xDelay/5 );
-					 Ready_bullet_p=1;
+					xSemaphoreGive(BulletInactivePlayer);
                     break;
 					
 
@@ -788,7 +849,8 @@ void Kill_task_player(void *pvParameters)
 					world[y - 1][x] = empty;
                      Bullet_speed=0;
                     vTaskDelay(xDelay/5 );
-					Ready_bullet_p=1;
+					//Ready_bullet_p=1;
+                    xSemaphoreTake(BulletInactivePlayer,0);
                    // printf("Ready_bullet_p_b= %i\n",Ready_bullet_p);
                     break;
 					
@@ -798,7 +860,8 @@ void Kill_task_player(void *pvParameters)
 					world[y - 1][x] = empty;
                      Bullet_speed=0;
                      vTaskDelay(xDelay/5 );
-                     Ready_bullet_p=1;
+                     //Ready_bullet_p=1;
+                     xSemaphoreTake(BulletInactivePlayer,0);
                     //printf("Ready_bullet_p_b= %i\n",Ready_bullet_p);
                     //printf("Shoot again\n");
                     break;
@@ -844,19 +907,20 @@ static int LowestEnemy()
 }
 
 void Enemy_Shoot(void* pvParameter)
-{   
+{   LifeCountQueue = xQueueCreate(10, sizeof(unsigned char));
+    const unsigned char life =1;
+
          vTaskDelay(xDelay*15);
          int cur_enemy=LowestEnemy();
     for(;;)
-    {  if(Ready_bullet_p==0) //check current Anzahl of lowstEnemy when player shoot
+    {  if(xSemaphoreTake(BulletInactivePlayer, 0)==pdTRUE) //check current Anzahl of lowstEnemy when player shoot
         cur_enemy=LowestEnemy();
       int enemy_x;
     int y=lowestEnemy;
     int shoot =rand()% cur_enemy;
   
-    int flag=0;
-    printf("Cur_Enemy=%i \n",cur_enemy);
-    printf("Shoot=%i \n",shoot);
+   // printf("Cur_Enemy=%i \n",cur_enemy);
+   // printf("Shoot=%i \n",shoot);
     //check random enemy
     for (int x=0;x<=22;x++)
     { 
@@ -878,15 +942,15 @@ void Enemy_Shoot(void* pvParameter)
            
      } 
 
-      printf("enemy_Ready=%i \n",Ready_bullet_e);
-        printf("enemy_num=%i \n",enemy_num);
-        printf("enemy_bullet=%i ,Y=%i \n",enemy_x,y+1);
+    //  printf("enemy_Ready=%i \n",Ready_bullet_e);
+    //    printf("enemy_num=%i \n",enemy_num);
+    //    printf("enemy_bullet=%i ,Y=%i \n",enemy_x,y+1);
     //shooting
     for(y=lowestEnemy+1;y<=sizey-1;y++)
     {   
-   
+        printf("enemy_bullet=%i ,Y=%i \n",enemy_x,y+1);
 
-           if (world[y+1][enemy_x]==empty && y+1==13)
+           if (world[y+1][enemy_x]==empty && y+1==14)
             {
                  world[y][enemy_x]=empty;
                  world[y+1][enemy_x]=empty;
@@ -935,10 +999,17 @@ void Enemy_Shoot(void* pvParameter)
         }    
         else if (world[y+1][enemy_x]==player)  
          {  vTaskDelay(xDelay*2);
+            printf("Kill Player");
             world[y][enemy_x]=empty;
-            world[y+1][enemy_x]=empty; 
+            for(int x=enemy_x-2;x<enemy_x+3;x++)
+            {
+            world[y+1][x]=empty; 
+            }
             world[sizey-1][sizex/2]=player;
-            life-=1;
+            world[sizey-1][sizex/2-1]=player;
+            world[sizey-1][sizex/2+1]=player;
+            //life-=1;
+            xQueueSend(LifeCountQueue, &life, portMAX_DELAY);
             Ready_bullet_e=1;
             //vTaskSuspend(Kill_task_player);
             
@@ -968,7 +1039,7 @@ void vDrawEnemyBullet()
     int w = 6;
 	int h = 6;
 	int p1 = enemy_bullet_x+20;
-    int y=world_offsetY+(lowestEnemy+1)*31+Bullet_speed_enemy*9.3;
+    int y=world_offsetY+(lowestEnemy+1)*31+Bullet_speed_enemy*8.8;
     if (Ready_bullet_e == 0) {
 		
         
@@ -984,8 +1055,9 @@ void vDrawEnemyBullet()
 	if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
 		if (buttons.buttons[KEYCODE(SPACE)]) {
 			buttons.buttons[KEYCODE(SPACE)] = 0;
-			if (Ready_bullet_p) {
-				Ready_bullet_p = 0;
+            //if(ReadyBullet_Player==1)
+			if (xSemaphoreTake(BulletInactivePlayer, 0)!=pdTRUE) {
+				xSemaphoreGive(BulletInactivePlayer);
                 world[sizey - 2][player_X] = player_bullet;
 				vTaskResume(Check_kill_player);
 				
@@ -1246,8 +1318,7 @@ void vDrawenemy_10(int x, int y, int v, int x1, int y1)
 
 void Move_Player(void *pvParameters)
 {
-    
-	for (;;) {
+    	for (;;) {
 		//Button count
 		if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
 			if (buttons.buttons[KEYCODE(RIGHT)]) {
@@ -1258,8 +1329,8 @@ void Move_Player(void *pvParameters)
 				player_PositionX += 26;
 				
                 player_X++;
-                world[sizey-1][player_X]=player;
-                world[sizey-1][player_X-1]=empty;
+                world[sizey-1][player_X+1]=player;
+                world[sizey-1][player_X-2]=empty;
                 }
                 printf("player_matrix=%i\n", player_X);
                 printf("player_Position=%i\n", player_PositionX);
@@ -1270,9 +1341,9 @@ void Move_Player(void *pvParameters)
 					Position -= 26;
 				player_PositionX -= 26;
 				player_X--;
-                world[sizey-1][player_X]=player;
-                world[sizey-1][player_X]=player;
-                world[sizey-1][player_X+1]=empty;}
+                world[sizey-1][player_X-1]=player;
+                
+                world[sizey-1][player_X+2]=empty;}
 				printf("player_Position=%i\n", player_PositionX);
                 printf("player_matrix=%i\n", player_X);
 			}
@@ -1379,7 +1450,7 @@ void vDraw_Player(int p)
 	tumDrawSetLoadedImageScale(logo_image_player, 0.22);
 	checkDraw(tumDrawLoadedImage(logo_image_player, x, y), __FUNCTION__);
 }
-void vDraw_PlayerLife()
+void vDraw_PlayerLife(int life)
 {
 	int x = 180;
 	int y = SCREEN_HEIGHT-80;
@@ -1403,11 +1474,12 @@ void Gameover()
 	sprintf(str, " Game Over!!! ");
 	tumFontSetSize((ssize_t)40);
 
-	checkDraw(tumDrawText(str, CAVE_SIZE_X-40, CAVE_Y, Red), __FUNCTION__);
+	checkDraw(tumDrawText(str, CAVE_SIZE_X-100, CAVE_Y, Red), __FUNCTION__);
 	vTaskDelay(1000);
-    life=3;
+   
 	xQueueSend(StateQueue, &next_state_signal_1, 0);
 }
+
 void vDraw_Mothership()
 {
 	int x = CAVE_SIZE_X-50;
@@ -1530,6 +1602,15 @@ static int vCheckStateInputP(void)
 
 	return 0;
 }
+void DIFFICULT_SET(int Diffcult)
+{
+    if (Diffcult==1||cur_enemy<=30)
+    xDelay=7;
+    else if (Diffcult==2||cur_enemy<=22)
+    xDelay=6;
+    else if (Diffcult==3||cur_enemy<=15)
+    xDelay=5;
+}
 
 static int vCheckStateInputM(void)
 {
@@ -1547,6 +1628,7 @@ static int vCheckStateInputM(void)
 				xQueueSend(StateQueue, &next_state_signal_1, 0);
 				
 			}
+
 			
 		}
 		xSemaphoreGive(buttons.lock);
@@ -1665,7 +1747,7 @@ void vTCPDemoTask(void *pvParameters)
 }
     unsigned int score_1 = 0;
     unsigned int score_2 = 0;
-    unsigned int high_score = 0;
+   
 void vDemoTask2(void *pvParameters)
 {
 		xTaskCreate(Move_text_all, "MOVE_TEXT_all", mainGENERIC_STACK_SIZE,
@@ -1690,7 +1772,7 @@ void vDemoTask2(void *pvParameters)
 				DrawMoveText2();
 				PlayText();
 
-				Score_Title(score_1, high_score, score_2);
+				Score_Title(score_1, score_2);
 				// Draw FPS in lower right corner
 
 				xSemaphoreGive(ScreenLock);
@@ -1706,7 +1788,7 @@ void vDemoTask1(void *pvParameters)
 	int y = 0;
 	int x = 50;
 
-    
+
 	
     tumFontSetSize((ssize_t)23);
 
@@ -1726,7 +1808,7 @@ void vDemoTask1(void *pvParameters)
 
 				// Clear screen
 				DrawText(x, y);
-				Score_Title(score_1, high_score, score_2);
+				Score_Title(score_1, score_2);
 				xSemaphoreGive(ScreenLock);
 
 				// Check for state change
@@ -1752,6 +1834,9 @@ void vDemoTask3(void *pvParameters)
     unsigned int score_2 = 0;
     unsigned int high_score = 0;
     unsigned char score_flag;
+    char difficulty = 1; //1=easy 4=difficult
+    unsigned int life= 3;
+    unsigned char life_flag;
 	Enemyfield();
     BaseType_t xReturn = pdPASS;
     taskENTER_CRITICAL();
@@ -1765,27 +1850,27 @@ void vDemoTask3(void *pvParameters)
 	xReturn=xTaskCreate(Move_enemy, "MOVE_enemy", mainGENERIC_STACK_SIZE, NULL,
 		    mainGENERIC_PRIORITY, &enemy_Task);
             if(pdPASS== xReturn)
-              
-              printf("task_move_enemy created\n");
-            else 
-            vTaskResume(enemy_Task);
+             printf("task_move_enemy created\n");
+           
+         
     xReturn=xTaskCreate(Enemy_Shoot,"Enemy_Shoot", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &EnemyShoot_task);
-    if(pdPASS!= xReturn)
-    vTaskResume(EnemyShoot_task);
+                if(pdPASS!= xReturn)
+                vTaskResume(EnemyShoot_task);
+				vTaskResume(enemy_Task);
+				vTaskResume(enemy_position);
     xTaskCreate(CheckButton_INPUT3,"Check_INPUT3", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &Check_Button_Input);       
-xReturn=xTaskCreate(Kill_task_player, "Bullet_position", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &Check_kill_player);
-	        if(pdPASS== xReturn)
-              printf("task_Killed_enemy created\n");
- xReturn= xTaskCreate(Move_Player, "MOVE_Player", mainGENERIC_STACK_SIZE, NULL,
- mainGENERIC_PRIORITY, &Player_Task);
-
+  xReturn=xTaskCreate(Kill_task_player, "Bullet_position", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &Check_kill_player);
+	            if(pdPASS== xReturn)
+                printf("task_Killed_enemy created\n");
+    xReturn= xTaskCreate(Move_Player, "MOVE_Player", mainGENERIC_STACK_SIZE, NULL,
+                        mainGENERIC_PRIORITY, &Player_Task);
+          
+    xReturn=xTaskCreate(move_enemy_position, "Enemy_Position", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY+1, &enemy_position );
             if(pdPASS== xReturn)
-               vTaskDelete(Player_Task);
-xReturn=xTaskCreate(move_enemy_position, "Enemy_Position", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY+1, &enemy_position );
-               if(pdPASS== xReturn)
               printf("task_move_enemy_position created\n");
-                else
-                vTaskResume(enemy_position);
+        
+                 vTaskSuspend(Check_kill_player);
+
     while (1) {
 		if (DrawSignal)
 			if (xSemaphoreTake(DrawSignal, portMAX_DELAY) ==
@@ -1796,7 +1881,30 @@ xReturn=xTaskCreate(move_enemy_position, "Enemy_Position", mainGENERIC_STACK_SIZ
 
 				
                 checkDraw(tumDrawClear(Black), __FUNCTION__);
+                xGetButtonInput();             
+                if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
 				 // Check for score updates
+                    if (buttons.buttons[KEYCODE(D)]) {
+                        xSemaphoreGive(buttons.lock);
+                        difficulty = (difficulty + 1) % 4+1;
+                        xQueueSend(DifficultyQueue, (void *) &difficulty, portMAX_DELAY);
+                        vTaskDelay(200);
+                    }
+                  else {
+                        xSemaphoreGive(buttons.lock);
+                    }
+                }
+                if (LifeCountQueue) {
+                    
+                        while (xQueueReceive(
+                                  LifeCountQueue,
+                                   &life_flag,
+                                   0) == pdTRUE) {
+                            life--;
+                        }
+                        
+                    }
+                    
                     if (ScoreQueue30) {
                         while (xQueueReceive(
                                    ScoreQueue30,
@@ -1822,8 +1930,9 @@ xReturn=xTaskCreate(move_enemy_position, "Enemy_Position", mainGENERIC_STACK_SIZ
                             score_1+=10;
                         }
                         
-                    }    
-                Score_Title(score_1, high_score, score_2);
+                    }  
+                DIFFICULT_SET( difficulty); 
+                Score_Title(score_1, score_2);
 				vDrawHelpText();
 
 				vDrawBlock_all(x+10, SCREEN_HEIGHT -200, w, h);
@@ -1840,48 +1949,630 @@ xReturn=xTaskCreate(move_enemy_position, "Enemy_Position", mainGENERIC_STACK_SIZ
 				xSemaphoreGive(ScreenLock);
 				
 				
-				vDraw_PlayerLife();
+				vDraw_PlayerLife(life);
 				
-				if (life == 0)
-					Gameover();
+				 if(life==0||lowestEnemy==sizey-5) 
+					    Gameover();
 			}
-	}
+	}    vTaskSuspend(EnemyShoot_task);
+    vTaskSuspend(enemy_Task);
 }
-void vDemoTask4(void *pvParameters)
+
+#define UDP_RECEIVE_PORT 1234
+typedef enum { NONE = 0, INC = 1, DEC = -1 } opponent_cmd_t;
+void UDPHandler(size_t read_size, char *buffer, void *args)
 {
+   opponent_cmd_t next_key = NONE;
+    BaseType_t xHigherPriorityTaskWoken1 = pdFALSE;
+    BaseType_t xHigherPriorityTaskWoken2 = pdFALSE;
+    BaseType_t xHigherPriorityTaskWoken3 = pdFALSE;
+
+    if (xSemaphoreTakeFromISR(HandleUDP, &xHigherPriorityTaskWoken1) ==
+        pdTRUE) {
+
+        char send_command = 0;
+        if (strncmp(buffer, "INC", (read_size < 3) ? read_size : 3) ==
+            0) {
+            next_key = INC;
+            send_command = 1;
+        }
+        else if (strncmp(buffer, "DEC",
+                         (read_size < 3) ? read_size : 3) == 0) {
+            next_key = DEC;
+            send_command = 1;
+        }
+        else if (strncmp(buffer, "NONE",
+                         (read_size < 4) ? read_size : 4) == 0) {
+            next_key = NONE;
+            send_command = 1;
+        }
+
+        if (NextKeyQueue && send_command) {
+            xQueueSendFromISR(NextKeyQueue, (void *)&next_key,
+                              &xHigherPriorityTaskWoken2);
+        }
+        xSemaphoreGiveFromISR(HandleUDP, &xHigherPriorityTaskWoken3);
+
+        portYIELD_FROM_ISR(xHigherPriorityTaskWoken1 |
+                           xHigherPriorityTaskWoken2 |
+                           xHigherPriorityTaskWoken3);
+    }
+    else {
+        fprintf(stderr, "[ERROR] Overlapping UDPHandler call\n");
+    }
+}
+
+
+
+//Computer Control
+void vUDPControlTask(void *pvParameters)
+{
+    static char buf[50];
+    char *addr = NULL; // Loopback
+    in_port_t port = UDP_RECEIVE_PORT;
+    unsigned int bullet_y = 0;
+    unsigned int player_x = 0;
+    char last_difficulty = -1;
+    char difficulty = 1;
+
+    udp_soc_receive =
+        aIOOpenUDPSocket(addr, port, UDP_BUFFER_SIZE, UDPHandler, NULL);
+
+   printf("UDP socket opened on port %d\n", port);
+
+    while (1) {
+        vTaskDelay(pdMS_TO_TICKS(15));
+        while (xQueueReceive(BulletYQueue, &bullet_y, 0) == pdTRUE) {
+        }
+        while (xQueueReceive(PaddleXQueue, &player_x, 0) == pdTRUE) {
+        }
+        while (xQueueReceive(DifficultyQueue, &difficulty, 0) == pdTRUE) {
+        }
+        signed int diff = bullet_y - player_X;
+        if (diff > 0) {
+            sprintf(buf, "+%d", diff);
+        }
+        else {
+            sprintf(buf, "-%d", -diff);
+        }
+        aIOSocketPut(UDP, NULL, UDP_TRANSMIT_PORT, buf,
+                     strlen(buf));
+        if (last_difficulty != difficulty) {
+            sprintf(buf, "D%d", difficulty + 1);
+            aIOSocketPut(UDP, NULL, UDP_TRANSMIT_PORT, buf,
+                         strlen(buf));
+            last_difficulty = difficulty;
+        }
+    }
+}
+void vIncrementPaddleX(unsigned short *paddle)
+{
+    if (paddle)
+        if (*paddle != 0) {
+            (*paddle)--;
+        }
+    if (paddle)
+        if (*paddle != 0) {
+            (*paddle)--;
+        }
+}
+
+void vDecrementPaddleX(unsigned short *paddle)
+{
+    if (paddle)
+        if (*paddle != PADDLE_INCREMENT_COUNT) {
+            (*paddle)++;
+        }
+    if (paddle)
+        if (*paddle != PADDLE_INCREMENT_COUNT) {
+            (*paddle)++;
+        }
+}
+
+	//Change to CheckPlayer Input
+unsigned char xCheckPlayerInput(unsigned short *player_paddle_x)
+{
+    xGetButtonInput(); // Update global button data
+
+    if (xSemaphoreTake(buttons.lock, portMAX_DELAY) == pdTRUE) {
+        if (buttons.buttons[KEYCODE(RIGHT)]) {
+            vIncrementPaddleX(player_paddle_x);
+            xSemaphoreGive(buttons.lock);
+            return 1;
+        }
+        if (buttons.buttons[KEYCODE(LEFT)]) {
+            vDecrementPaddleX(player_paddle_x);
+            xSemaphoreGive(buttons.lock);
+            return 1;
+        }
+    }
+    xSemaphoreGive(buttons.lock);
+    return 0;
+}
+unsigned char xCheckMotherInput(unsigned short *player_paddle_x)
+{
+    xGetButtonInput(); // Update global button data
+
+    if (xSemaphoreTake(buttons.lock, portMAX_DELAY) == pdTRUE) {
+        if (buttons.buttons[KEYCODE(D)]) {
+            vIncrementPaddleX(player_paddle_x);
+            xSemaphoreGive(buttons.lock);
+            return 1;
+        }
+        if (buttons.buttons[KEYCODE(A)]) {
+            vDecrementPaddleX(player_paddle_x);
+            xSemaphoreGive(buttons.lock);
+            return 1;
+        }
+    }
+    xSemaphoreGive(buttons.lock);
+    return 0;
+}
+
+//Draw Player and Mothership
+void vDrawWall_image(wall_t *wall, image_handle_t*logo_image)
+{
+   tumDrawSetLoadedImageScale(logo_image, 0.2);
+	checkDraw(tumDrawLoadedImage(logo_image,wall-> x1,wall-> y1-20),
+			  __FUNCTION__);
+ tumDrawFilledBox(wall->x1, wall->y1, wall->w, wall->h, wall->colour);
+
+
+}
+
+void vDrawWall(wall_t *wall)
+{
+	tumDrawFilledBox(wall->x1, wall->y1, wall->w, wall->h, wall->colour);
+
+}
+
+
+void vDrawPaddle(wall_t *wall,image_handle_t*logo_image, unsigned short x_increment)
+{
+    // Set wall X
+    setWallProperty(wall,
+                    x_increment * PADDLE_INCREMENT_SIZE + GAME_FIELD_INNER +
+                    2, 0,
+                    0, 0, SET_WALL_X);
+    // Draw wall
+    vDrawWall_image(wall,logo_image);
+}
+
+typedef struct player_data {
+    wall_t *paddle;
+    unsigned short paddle_position;
+} player_data_t;
+
+void vResetPaddle(wall_t *wall)
+{
+    setWallProperty(wall,  PADDLE_INCREMENT_COUNT / 2,0, 0, 0, SET_WALL_Y);
+}
+
+void vPlayerWallCallback(void *player_data)
+{	 
+    // Reset ball's position and speed and increment left player's score
+    const unsigned char point = 1;
+
+    if (PlayerScoreQueue) {
+        xQueueSend(PlayerScoreQueue, &point, portMAX_DELAY);
+    }
 	
-	logo_image_player = tumDrawLoadImage(LOGO_player);
+
+    vResetPaddle(((player_data_t *)player_data)->paddle);
+
+    xSemaphoreGive(BulletInactive);
+
+    //xQueueOverwrite(StartDirectionQueue, &start_right);
+}
+
+unsigned char xCheckPongUDPInput(unsigned short *paddle_x)
+{
+    static opponent_cmd_t current_key = NONE;
+
+    if (NextKeyQueue) {
+        xQueueReceive(NextKeyQueue, &current_key, 0);
+    }
+
+    if (current_key == INC) {
+        vDecrementPaddleX(paddle_x);
+    }
+    else if (current_key == DEC) {
+        vIncrementPaddleX(paddle_x);
+    }
+    return 0;
+}
+
+
+void vWakePaddles(char opponent_mode)
+{
+    /*if (xTaskNotify(PlayerTask, opponent_mode,
+                    eSetValueWithOverwrite) != pdPASS) {
+        fprintf(stderr,
+                "[ERROR] Task Notification to PlayerTask failed\n");
+    }*/
+    if (xTaskNotify(MothershipTask, 0x0, eSetValueWithOverwrite) !=
+        pdPASS) {
+        fprintf(stderr,
+                "[ERROR] Task Notification to MothershipTask failed\n");
+    }
+}
+unsigned char xCheckForInput(void)
+{
+	 if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
+				 // Check for score updates
+                    if (buttons.buttons[KEYCODE(SPACE)]) {
+						buttons.buttons[KEYCODE(SPACE)] = 0;
+                        xSemaphoreGive(buttons.lock);
+						xSemaphoreGive(BulletInactive);
+                    }
+                  else {
+                        xSemaphoreGive(buttons.lock);
+                    }
+                }
+}
+
+void vPlayerPaddleTask(void *pvParameters)
+{	
+	logo_image_player = tumDrawLoadImage(LOGO_player);	
+    player_data_t player1 = { 0 };
+    player1.paddle_position = PADDLE_INCREMENT_COUNT / 2;
+
+
+    // Player paddle
+    player1.paddle =
+        createWall(PADDLE_START_LOCATION_X,SCREEN_HEIGHT - PADDLE_EDGE_OFFSET - PADDLE_HIGHT*3,
+                    PADDLE_LENGTH-15, PADDLE_HIGHT/10,
+                   0.1, White, &vPlayerWallCallback, &player1);
+
+    PlayerScoreQueue = xQueueCreate(10, sizeof(unsigned char));
+
+    while (1) {
+        // Get input
+      /*  if (ulTaskNotifyTake(pdTRUE, portMAX_DELAY)) { // COMPUTER
+            xCheckPongUDPInput(&player.paddle_position);
+            unsigned long paddle_x = player.paddle_position *
+                                     PADDLE_INCREMENT_SIZE +
+                                     PADDLE_LENGTH / 2 +
+                                     WALL_OFFSET + WALL_THICKNESS;
+            xQueueSend(PaddleXQueue, (void *)&paddle_x, 0);
+        }*/   
+    // else {   // PLAYER
+       xCheckPlayerInput(&player1.paddle_position);
+							
+    //    }
+
+        taskENTER_CRITICAL();
+        if (xSemaphoreTake(ScreenLock, 0) == pdTRUE) {
+            
+            vDrawPaddle(player1.paddle,
+						logo_image_player,
+                        player1.paddle_position
+						);
+        }
+        xSemaphoreGive(ScreenLock);
+        taskEXIT_CRITICAL();
+    }
+}
+
+void vMothershipWallCallback(void *player_data)
+{
+    // Reset ball's position and speed and increment right player's score
+   
+    const unsigned char life =1;
+
+   if(MothershipScoreQueue)
+		xQueueSend(MothershipScoreQueue, &life, portMAX_DELAY);
+	
+    vResetPaddle(((player_data_t *)player_data)->paddle);
+
+    xSemaphoreGive(BulletInactive);
+
+    //xQueueOverwrite(StartDirectionQueue, &start_left);
+}
+
+void vMothershipPaddleTask(void *pvParameters)
+{	
+	
 	logo_image_mothership = tumDrawLoadImage(LOGO_mothership);
+    player_data_t Mothership = { 0 };
+    Mothership.paddle_position = PADDLE_INCREMENT_COUNT / 2;
+
+
+    // Left paddle
+    Mothership.paddle = createWall(PADDLE_START_LOCATION_X,GAME_FIELD_INNER + PADDLE_EDGE_OFFSET*7,
+                                     PADDLE_LENGTH-12,
+                                    PADDLE_HIGHT/10, 0.1, White,  &vMothershipWallCallback,&Mothership);
+
+   MothershipScoreQueue = xQueueCreate(10, sizeof(unsigned char));
+
+    while (1) {
+        // Get input
+       if (ulTaskNotifyTake(pdTRUE, portMAX_DELAY)) { // COMPUTER
+            xCheckPongUDPInput(&Mothership.paddle_position);
+            unsigned long paddle_x = Mothership.paddle_position *
+                                     PADDLE_INCREMENT_SIZE +
+                                     PADDLE_LENGTH / 2 +
+                                     WALL_OFFSET + WALL_THICKNESS;
+            xQueueSend(PaddleXQueue, (void *)&paddle_x, 0);
+
+        }
+     /*   else {   // PLAYER
+            xCheckPongLeftInput(&Mothership.paddle_position);
+        }*/
+
+        taskENTER_CRITICAL();
+
+        if (xSemaphoreTake(ScreenLock, 0) == pdTRUE) {
+           
+            vDrawPaddle(Mothership.paddle,
+						logo_image_mothership,
+                        Mothership.paddle_position
+						);
+        }
+
+        xSemaphoreGive(ScreenLock);
+        taskEXIT_CRITICAL();
+    }
+}
+
+void vDemoTask4(void *pvParameters)
+{	
+	 //Random numbers
+    srand(time(NULL));
+    TickType_t xLastWakeTime, prevWakeTime;
+    xLastWakeTime = xTaskGetTickCount();
+    prevWakeTime = xLastWakeTime;
+    const TickType_t updatePeriod = 10;
+    unsigned char score_flag;
+	unsigned int pause=0;
+
+    ball_t *my_ball = createBall(SCREEN_WIDTH / 2,SCREEN_HEIGHT/2-120, Lime,
+                                 8, 250,NULL, NULL);
+
+    unsigned char bullet_active = 0;
+  //  unsigned char ball_direction = 0;
+	unsigned int score_1 = 0;
+	
+    unsigned int score_2 = 0;
+
+	unsigned int life= 3;
+    unsigned char life_flag;
+	unsigned char paddle_x;
+
+  char opponent_mode = 0; // 0: player 1: computer
+    char difficulty = 1; // 0: easy 1: normal 2: hard
+
+	
+    BulletInactive = xSemaphoreCreateBinary();
+    if (!BulletInactive) {
+        exit(EXIT_FAILURE);
+    }
+   HandleUDP = xSemaphoreCreateMutex();
+    if (!HandleUDP) {
+        exit(EXIT_FAILURE);
+    }
+   /*  StartDirectionQueue = xQueueCreate(1, sizeof(unsigned char));
+    if (!StartDirectionQueue) {
+        exit(EXIT_FAILURE);
+    }*/
+    NextKeyQueue = xQueueCreate(1, sizeof(opponent_cmd_t));
+    if (!NextKeyQueue) {
+        exit(EXIT_FAILURE);
+    }
+    BulletYQueue = xQueueCreate(5, sizeof(unsigned long));
+    if (!BulletYQueue) {
+        exit(EXIT_FAILURE);
+    }
+    PaddleXQueue = xQueueCreate(5, sizeof(unsigned long));
+    if (!PaddleXQueue) {
+        exit(EXIT_FAILURE);
+    }
+    DifficultyQueue = xQueueCreate(5, sizeof(unsigned char));
+    if (!DifficultyQueue) {
+        exit(EXIT_FAILURE);
+    }
 	logo_image_player_1 = tumDrawLoadImage(LOGO_player_1);
-	xTaskCreate(Move_Player, "MOVE_Player", mainGENERIC_STACK_SIZE, NULL,
-		    mainGENERIC_PRIORITY, &Player_Task);
+    setBallSpeed(my_ball, 0, 200, 0, SET_BALL_SPEED_AXES);
+	//logo_image_player = tumDrawLoadImage(LOGO_player);
+	//logo_image_mothership = tumDrawLoadImage(LOGO_mothership);
+	
+//	xTaskCreate(Move_Player, "MOVE_Player", mainGENERIC_STACK_SIZE, NULL,
+//		    mainGENERIC_PRIORITY, &Player_Task);
+
+	// Top wall
+    wall_t *top_wall = createWall(GAME_FIELD_INNER, GAME_FIELD_OUTER,
+                                  GAME_FIELD_WIDTH_INNER, WALL_THICKNESS/4,
+                                  0.1, White, NULL, NULL);
+	 // Bottom wall
+    wall_t *bottom_wall = createWall(
+                              GAME_FIELD_INNER, GAME_FIELD_INNER + GAME_FIELD_HEIGHT_INNER,
+                              GAME_FIELD_WIDTH_INNER, WALL_THICKNESS/4, 0.1, White, NULL, NULL);
+	
+/*	xTaskCreate(vPlayerPaddleTask, "PlayerPaddleTask",
+                    mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY,
+                    &PlayerTask);
+	
+	xTaskCreate(vMothershipPaddleTask, "MothershipPaddleTask",
+                    mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY,
+                    &);
+xTaskCreate(vUDPControlTask, "UDPControlTask",
+                    mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY,
+                    &UDPControlTask); */
+	
+	
+	vTaskResume(PlayerTask);
+	vTaskResume(MothershipTask);
+	
+	
 	while (1) {
 		if (DrawSignal)
 			if (xSemaphoreTake(DrawSignal, portMAX_DELAY) ==
-			    pdTRUE) {
+			    pdTRUE) {		
 				tumEventFetchEvents(FETCH_EVENT_BLOCK |
-						    FETCH_EVENT_NO_GL_CHECK);
-
-				xGetButtonInput(); // Update global button data
-				xSemaphoreTake(ScreenLock, portMAX_DELAY);
+						   		 FETCH_EVENT_NO_GL_CHECK);
+					xSemaphoreTake(ScreenLock, portMAX_DELAY);
+				vWakePaddles(opponent_mode);
 				checkDraw(tumDrawClear(Black), __FUNCTION__);
+					// Check if ball has made a collision
+				checkBallCollisions(my_ball, NULL, NULL);
 
-				// Clear screen
+				// Update the balls position now that possible collisions have
+				// updated its speeds
+				updateBallPosition(my_ball, xLastWakeTime - prevWakeTime);
+									unsigned long ball_y = my_ball->y;
+									xQueueSend(BulletYQueue, (void *)&ball_y, 0);
 
-				vDraw_Player(Position);
-				vDrawHelpText();
-				Score_Title(score_1, high_score, score_2);
-				xSemaphoreGive(ScreenLock);
-				vCheckStateInput_R();
-				// Check for state change
-				vCheckStateInputM();
-				vDraw_PlayerLife();
-				vDraw_Mothership();
-              
-				if (life == 0)
-					Gameover();
-			}
-	}
+									
+									// Check for score updates
+										if (PlayerScoreQueue) {
+											while (xQueueReceive(
+													PlayerScoreQueue,
+													&score_flag,
+													0) == pdTRUE) {
+												score_2++;
+											}
+										}
+									// Clear screen
+									vDrawWall(top_wall);
+									vDrawWall(bottom_wall);
+									//vDraw_Player(Position);
+									vDrawHelpText();
+									Score_Title(score_1,  score_2);
+									
+									//vCheckStateInput_R();
+									// Check for state change
+									vCheckStateInputM();
+									vDraw_PlayerLife(life);
+									//vDraw_Mothership();
+								xSemaphoreGive(ScreenLock);
+									taskEXIT_CRITICAL();				
+					//Get playerX for setBallX
+				 while (xQueueReceive(PaddleXQueue, &paddle_x, 0) == pdTRUE) {
+       				 }
+
+                if (xSemaphoreTake(buttons.lock, 0) != pdTRUE) {
+					xGetButtonInput(); // Update global button data
+					if (buttons.buttons[KEYCODE(R)]) {
+                        xSemaphoreGive(buttons.lock);
+                        bullet_active = 0;
+                        setBallLocation(
+                            my_ball,
+                            SCREEN_WIDTH / 2+paddle_x*PADDLE_INCREMENT_SIZE,
+                            SCREEN_HEIGHT -120);
+                        setBallSpeed(
+                            my_ball, 0, 0, 0,
+                            SET_BALL_SPEED_AXES);
+                        score_2 = 0;
+                        
+                    }
+					 if (buttons.buttons[KEYCODE(P)]) {
+                        xSemaphoreGive(buttons.lock);
+							if(!pause%2)
+							{vTaskSuspend(PlayerTask);
+							 vTaskSuspend(MothershipTask);
+							setBallSpeed(
+                            my_ball, 0, 0, 0,
+                            SET_BALL_SPEED_AXES);
+								pause++;
+								}
+							else
+							{vTaskResume(PlayerTask);
+							 vTaskResume(MothershipTask);
+                         setBallSpeed( my_ball,
+									0,200,
+                                    0,
+                                    SET_BALL_SPEED_AXES);
+								pause++;
+								}
+
+                    }
+                    xSemaphoreGive(buttons.lock);
+                	}
+				
+				 // Bullet is no longer active
+                if (xSemaphoreTake(BulletInactive, 0) == pdTRUE) {
+                    bullet_active = 0;
+                }
+
+                if (!bullet_active) {
+                    setBallLocation(my_ball,
+                                    SCREEN_WIDTH / 2,
+                                    SCREEN_HEIGHT -100);
+                    setBallSpeed(my_ball, 0, 0, 0,
+                                 SET_BALL_SPEED_AXES);
+
+                 if (xCheckForInput()) {
+					 bullet_active = 1;
+                    setBallSpeed( my_ball,
+									0,200,
+                                    0,
+                                    SET_BALL_SPEED_AXES);
+					
+                    
+               
+                       /* xQueueReceive(
+                            StartDirectionQueue,
+                            &ball_direction, 0);
+                        
+                        switch (ball_direction) {
+                            case START_LEFT:
+                                setBallSpeed(
+                                    my_ball,
+                                    -(rand() % 100 +
+                                      200),
+                                    ((rand() % 2) *
+                                     2 -
+                                     1) * (100 +
+                                           (rand() %
+                                            200)),
+                                    0,
+                                    SET_BALL_SPEED_AXES);
+                                break;
+                            default:
+                            case START_RIGHT:
+                                setBallSpeed(
+                                    my_ball,
+                                    rand() % 100 +
+                                    200,
+                                    ((rand() % 2) *
+                                     2 -
+                                     1) * (100 +
+                                           (rand() %
+                                            200)),
+                                    0,
+                                    SET_BALL_SPEED_AXES);
+                                break;*/
+				 }
+				}
+							// Draw the ball
+                      tumDrawCircle(my_ball->x,
+                                    my_ball->y,
+                                    my_ball->radius,
+                                    my_ball->colour);              
+			  
+			 if (MothershipScoreQueue) {
+                    
+                        while (xQueueReceive(
+                                  MothershipScoreQueue,
+                                   &life_flag,
+                                   0) == pdTRUE) {
+                            life--;
+                        }
+                        
+                    }	
+
+                // Keep track of when task last ran so that you know how many ticks
+                //(in our case miliseconds) have passed so that the balls position
+                // can be updated appropriatley
+                prevWakeTime = xLastWakeTime;
+                vTaskDelayUntil(&xLastWakeTime, updatePeriod);	
+			if(life==0)
+	 			 Gameover();
+				             
+			  
+                    }
+       }
+				  
 }
 
 #define PRINT_TASK_ERROR(task) PRINT_ERROR("Failed to print task ##task");
@@ -1927,7 +2618,7 @@ int main(int argc, char *argv[])
 	atexit(aIODeinit);
 
 	//Load a second font for fun
-	tumFontLoadFont(FPS_FONT, DEFAULT_FONT_SIZE);
+	//tumFontLoadFont(FPS_FONT, DEFAULT_FONT_SIZE);
 
 	buttons.lock = xSemaphoreCreateMutex(); // Locking mechanism
 	if (!buttons.lock) {
@@ -1999,17 +2690,73 @@ int main(int argc, char *argv[])
 	xTaskCreate(vDemoSendTask, "SendTask", mainGENERIC_STACK_SIZE * 2, NULL,
 		    configMAX_PRIORITIES - 1, &DemoSendTask);
 
+	//2 Player Tasks
+	    if (xTaskCreate(vPlayerPaddleTask, "PlayerPaddleTask",
+                    mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY,
+                    &PlayerTask) != pdPASS) {
+        PRINT_TASK_ERROR("PlayerPaddleTask");
+        goto err_playerpaddle;
+    }
+    if (xTaskCreate(vMothershipPaddleTask, "MothershipPaddleTask",
+                    mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY,
+                    &MothershipTask) != pdPASS) {
+        PRINT_TASK_ERROR("MotershipPaddleTask");
+        goto err_mothershippaddle;
+    }
+/*	    if (xTaskCreate(Move_enemy, "MOVE_enemy", mainGENERIC_STACK_SIZE, NULL,
+		    mainGENERIC_PRIORITY, &enemy_Task) != pdPASS) {
+        PRINT_TASK_ERROR("MOVE_enemy");
+        goto err_move_enemy;
+    }
+		    if (xTaskCreate(Move_enemy, "MOVE_enemy", mainGENERIC_STACK_SIZE, NULL,
+		    mainGENERIC_PRIORITY, &enemy_Task) != pdPASS) {
+        PRINT_TASK_ERROR("MOVE_enemy");
+        goto err_move_enemy;
+    }
+			 if (xTaskCreate(Enemy_Shoot,"Enemy_Shoot", mainGENERIC_STACK_SIZE, NULL,
+			  mainGENERIC_PRIORITY, &EnemyShoot_task) != pdPASS) {
+        PRINT_TASK_ERROR("Enemy_Shoot");
+        goto err_enemyshoot;
+    }
+		if (xTaskCreate(move_enemy_position, "Enemy_Position", mainGENERIC_STACK_SIZE, NULL, 
+		mainGENERIC_PRIORITY+1, &enemy_position ) != pdPASS) {
+        PRINT_TASK_ERROR("Enemy_Position");
+        goto err_enemyposition;
+    }
+
+
+    if (xTaskCreate(vUDPControlTask, "UDPControlTask",
+                    mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY,
+                    &UDPControlTask) != pdPASS) {
+        PRINT_TASK_ERROR("UDPControlTask");
+        goto err_udpcontrol; 
+    }*/
+
 	vTaskSuspend(DemoTask1);
 	vTaskSuspend(DemoTask2);
 	vTaskSuspend(DemoTask3);
 	vTaskSuspend(DemoTask4);
-
+	vTaskSuspend(PlayerTask);
+	vTaskSuspend(MothershipTask);
+	
+   
 	tumFUtilPrintTaskStateList();
 
 	vTaskStartScheduler();
 
 	return EXIT_SUCCESS;
-
+/*err_udpcontrol:
+    vTaskDelete(UDPControlTask);
+err_enemyposition:
+	vTaskDelete(enemy_position);
+err_enemyshoot:
+	vTaskDelete(EnemyShoot_task);
+err_move_enemy:
+	vTaskDelete(enemy_Task);*/
+err_playerpaddle:
+    vTaskSuspend(PlayerTask);
+err_mothershippaddle:
+    vTaskDelete(MothershipTask);
 err_demotask4:
 	vTaskDelete(DemoTask2);
 err_demotask3:
@@ -2017,10 +2764,7 @@ err_demotask3:
 err_demotask2:
 	vTaskDelete(DemoTask1);
 err_demotask1:
-    if(xTaskCreate(Enemy_Shoot,"Enemy_Shoot", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY, &EnemyShoot_task)==pdPASS)
-    vTaskDelete(EnemyShoot_task);
-    if(xTaskCreate(move_enemy_position, "Enemy_Position", mainGENERIC_STACK_SIZE, NULL, mainGENERIC_PRIORITY+1, &enemy_position )==pdPASS)
-    vTaskDelete(enemy_position);
+   
 	vTaskDelete(BufferSwap);
 err_bufferswap:
 	vTaskDelete(StateMachine);
